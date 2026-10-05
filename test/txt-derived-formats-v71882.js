@@ -8,6 +8,7 @@ function must(x,m){if(!x)throw new Error(m);}
 new vm.Script(runtime,{filename:'reader/readest-runtime.js'});
 new vm.Script(reader,{filename:'reader/reader.js'});
 must(runtime.includes("confidence:'txt-source-annotated-exact'"),'TXT v7.18.56 exact mapper missing');
+must(/\n  txtDomRangeToCanonical\(index,range,options\)\{/.test(runtime),'TXT reverse selection locator is missing; selection toolbar cannot resolve a TXT Range');
 must(runtime.includes("readerProjectText(ct),cursor=0"),'Office source projection does not use TXT projection');
 must(runtime.includes("data-odt-source-version','2'"),'ODT TXT-derived source version missing');
 must(runtime.includes("data-docx-source-version','2'"),'DOCX TXT-derived source version missing');
