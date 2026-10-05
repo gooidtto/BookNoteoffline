@@ -1,0 +1,170 @@
+{
+  "extension_name": {
+    "message": "Read Aloud: Un Lettore Vocale da Testo a Voce"
+  },
+  "extension_short_name": {
+    "message": "Read Aloud"
+  },
+  "extension_description": {
+    "message": "Legge ad alta voce la pagina web con un click. Supporta 40+ lingue."
+  },
+  "options_heading": {
+    "message": "Opzioni"
+  },
+  "options_voice_label": {
+    "message": "Voce"
+  },
+  "options_voicegroup_offline": {
+    "message": "Voci Offline"
+  },
+  "options_voicegroup_experimental": {
+    "message": "Voci AI Sperimentali"
+  },
+  "options_voicegroup_googlecloud": {
+    "message": "Voci Google Cloud"
+  },
+  "options_voicegroup_standard": {
+    "message": "Voci Standard"
+  },
+  "options_voicegroup_premium": {
+    "message": "Voci Premium"
+  },
+  "options_voicegroup_additional": {
+    "message": "Voci Aggiuntive"
+  },
+  "options_enable_premium_voices": {
+    "message": "Abilita Voci Premium"
+  },
+  "options_premium_voices_enabled": {
+    "message": "Le voci premium sono abilitate"
+  },
+  "options_add_more_languages": {
+    "message": "Aggiungere altre lingue"
+  },
+  "options_enable_custom_voices": {
+    "message": "🧩 Abilita voci personalizzate..."
+  },
+  "options_enable_piper_voices": {
+    "message": "⚡ Gestisci Voci Piper"
+  },
+  "options_enable_supertonic_voices": {
+    "message": "⚡ Gestisci Voci Supertonic"
+  },
+  "options_rate_label": {
+    "message": "Velocità"
+  },
+  "options_rate_warning": {
+    "message": "Nota: alcune voci potrebbero non funzionare ad alta velocità."
+  },
+  "options_pitch_label": {
+    "message": "Altezza"
+  },
+  "options_volume_label": {
+    "message": "Volume"
+  },
+  "options_show_highlighting": {
+    "message": "Evidenzia Testo"
+  },
+  "options_highlighting_off": {
+    "message": "Disattiva"
+  },
+  "options_highlighting_popup": {
+    "message": "Mostra in popup"
+  },
+  "options_highlighting_window": {
+    "message": "Mostra in una finestra separata"
+  },
+  "options_hotkeys_link": {
+    "message": "Modifica i tasti di scelta rapida"
+  },
+  "options_save_button": {
+    "message": "Salva"
+  },
+  "options_test_button": {
+    "message": "Testare"
+  },
+  "options_reset_button": {
+    "message": "Reset"
+  },
+  "options_stop_button": {
+    "message": "Interrompi"
+  },
+  "options_success_status": {
+    "message": "Modifiche salvate."
+  },
+  "options_logged_in_as": {
+    "message": "Accesso effettuato come"
+  },
+  "options_account_button": {
+    "message": "Account"
+  },
+  "options_logout_button": {
+    "message": "Disconnetti"
+  },
+  "context_read_selection": {
+    "message": "Leggi il testo selezionato"
+  },
+  "error_no_text": {
+    "message": "Non ho trovato testo da leggere"
+  },
+  "error_no_voice": {
+    "message": "Lingua non supportata '{lang}'"
+  },
+  "error_upload_pdf": {
+    "message": "Usa il modulo per caricare il tuo file PDF per leggere ad alta voce"
+  },
+  "error_ajax_pdf": {
+    "message": "Si prega di salvare questo file PDF sul computer e aprirlo in questo [visualizzatore PDF](open-pdf-viewer) per leggerlo ad alta voce"
+  },
+  "error_page_unreadable": {
+    "message": "Non posso leggere ad alta voce questo sito"
+  },
+  "error_reader_mode": {
+    "message": "Si prega di avviare la lettura ad alta voce *prima* di entrare in modalità lettura"
+  },
+  "error_file_access": {
+    "message": "Impossibile accedere al file locale. Se è un file PDF, aprilo nel [visualizzatore PDF](open-pdf-viewer) per leggerlo ad alta voce"
+  },
+  "error_add_permissions": {
+    "message": "È necessario concedere a Read Aloud ulteriori [permessi](request-permissions) per questo sito web"
+  },
+  "error_login_required": {
+    "message": "[Accedi](sign-in) per utilizzare le voci Premium"
+  },
+  "error_voice_unavailable": {
+    "message": "Voce non disponibile, per favore sceglierne un'altra"
+  },
+  "error_payment_required": {
+    "message": "Credito esaurito"
+  },
+  "error_wavenet_auth_required": {
+    "message": "È necessario concedere ulteriori [permessi](auth-wavenet) per abilitare le voci Google Wavenet"
+  },
+  "error_user_gesture_required": {
+    "message": "Fai clic [qui](user-gesture) per iniziare"
+  },
+  "error_phone_not_connected": {
+    "message": "Telefono non connesso. [Connetti](connect-phone)"
+  },
+  "error_phone_disconnected": {
+    "message": "Telefono disconnesso ({reason}). [Riconnetti](connect-phone)"
+  },
+  "error_chatgpt": {
+    "message": "Fai clic sull'icona dell'altoparlante accanto a ogni risposta per leggerla ad alta voce"
+  },
+  "languages_heading": {
+    "message": "Opzioni di lingua"
+  },
+  "languages_back_button": {
+    "message": "Torna alle opzioni"
+  },
+  "google_translate_request_permission": {
+    "message": "Read Aloud vorrebbe utilizzare Google Translate per la sintesi vocale."
+  },
+  "google_translate_allow_button": {
+    "message": "Permettere"
+  },
+  "google_translate_keep_page_open": {
+    "message": "Read Aloud sta usando Google Translate per la sintesi vocale. Si prega di tenere questa scheda aperta."
+  }
+}

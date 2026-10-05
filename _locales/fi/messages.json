@@ -1,0 +1,170 @@
+{
+  "extension_name": {
+    "message": "Read Aloud: Tekstistä puheeksi -lukija"
+  },
+  "extension_short_name": {
+    "message": "Read Aloud"
+  },
+  "extension_description": {
+    "message": "Lue nykyisen verkkosivun artikkeli ääneen yhdellä napsautuksella tekstistä puheeksi (TTS) -tekniikalla. Tukee yli 40 kieltä."
+  },
+  "options_heading": {
+    "message": "Asetukset"
+  },
+  "options_voice_label": {
+    "message": "Ääni"
+  },
+  "options_voicegroup_offline": {
+    "message": "Offline-äänet"
+  },
+  "options_voicegroup_experimental": {
+    "message": "Kokeelliset tekoälyäänet"
+  },
+  "options_voicegroup_googlecloud": {
+    "message": "Google Cloud -äänet"
+  },
+  "options_voicegroup_standard": {
+    "message": "Vakioäänet"
+  },
+  "options_voicegroup_premium": {
+    "message": "Premium-äänet (vaatii ostoksen)"
+  },
+  "options_voicegroup_additional": {
+    "message": "Lisääänet"
+  },
+  "options_enable_premium_voices": {
+    "message": "Ota premium-äänet käyttöön"
+  },
+  "options_premium_voices_enabled": {
+    "message": "Premium-äänet ovat käytössä"
+  },
+  "options_add_more_languages": {
+    "message": "➕ Lisää kieliä..."
+  },
+  "options_enable_custom_voices": {
+    "message": "🧩 Ota mukautetut äänet käyttöön..."
+  },
+  "options_enable_piper_voices": {
+    "message": "⚡ Asenna Piper-äänet..."
+  },
+  "options_enable_supertonic_voices": {
+    "message": "⚡ Asenna Supertonic-äänet..."
+  },
+  "options_rate_label": {
+    "message": "Nopeus"
+  },
+  "options_rate_warning": {
+    "message": "Huomaa: jotkut äänet eivät ehkä toimi suurella nopeudella."
+  },
+  "options_pitch_label": {
+    "message": "Sävelkorkeus"
+  },
+  "options_volume_label": {
+    "message": "Äänenvoimakkuus"
+  },
+  "options_show_highlighting": {
+    "message": "Tekstin korostus"
+  },
+  "options_highlighting_off": {
+    "message": "Pois päältä"
+  },
+  "options_highlighting_popup": {
+    "message": "Näytä ponnahdusikkunassa"
+  },
+  "options_highlighting_window": {
+    "message": "Näytä erillisessä ikkunassa"
+  },
+  "options_hotkeys_link": {
+    "message": "Muokkaa pikanäppäimiä"
+  },
+  "options_save_button": {
+    "message": "Tallenna"
+  },
+  "options_test_button": {
+    "message": "Testaa"
+  },
+  "options_reset_button": {
+    "message": "Palauta"
+  },
+  "options_stop_button": {
+    "message": "Pysäytä"
+  },
+  "options_success_status": {
+    "message": "Muutokset tallennettu."
+  },
+  "options_logged_in_as": {
+    "message": "Kirjautuneena nimellä"
+  },
+  "options_account_button": {
+    "message": "Tili"
+  },
+  "options_logout_button": {
+    "message": "Kirjaudu ulos"
+  },
+  "context_read_selection": {
+    "message": "Lue valittu teksti ääneen"
+  },
+  "error_no_text": {
+    "message": "Luettavaa tekstiä ei löytynyt, kokeile ensin valita teksti, jonka haluat lukea"
+  },
+  "error_no_voice": {
+    "message": "Kieltä ei tueta '{lang}'"
+  },
+  "error_upload_pdf": {
+    "message": "Käytä lomaketta ladataksesi PDF-tiedostosi ääneen luettavaksi"
+  },
+  "error_ajax_pdf": {
+    "message": "Tallenna tämä PDF-tiedosto tietokoneellesi ja avaa se [PDF-katseluohjelmassa](open-pdf-viewer) lukeaksesi ääneen"
+  },
+  "error_page_unreadable": {
+    "message": "Tätä verkkosivustoa ei voi lukea ääneen"
+  },
+  "error_reader_mode": {
+    "message": "Aloita ääneen lukeminen *ennen* lukutilaan siirtymistä"
+  },
+  "error_file_access": {
+    "message": "Paikallista tiedostoa ei voi käyttää. Jos kyseessä on PDF-tiedosto, avaa se [PDF-katseluohjelmassa](open-pdf-viewer) lukeaksesi ääneen"
+  },
+  "error_add_permissions": {
+    "message": "Sinun on myönnettävä Read Aloudille lisä[käyttöoikeudet](request-permissions) tälle verkkosivustolle"
+  },
+  "error_login_required": {
+    "message": "[Kirjaudu sisään](sign-in) käyttääksesi premium-ääniä"
+  },
+  "error_voice_unavailable": {
+    "message": "Ääni ei ole käytettävissä, valitse toinen"
+  },
+  "error_payment_required": {
+    "message": "Krediitit lopussa"
+  },
+  "error_wavenet_auth_required": {
+    "message": "Sinun on myönnettävä lisä[käyttöoikeudet](auth-wavenet) ottaaksesi käyttöön Google Wavenet -äänet"
+  },
+  "error_user_gesture_required": {
+    "message": "Napsauta [tästä](user-gesture) aloittaaksesi"
+  },
+  "error_phone_not_connected": {
+    "message": "Puhelin ei ole yhdistetty. [Yhdistä](connect-phone)"
+  },
+  "error_phone_disconnected": {
+    "message": "Puhelimen yhteys katkesi ({reason}). [Yhdistä uudelleen](connect-phone)"
+  },
+  "error_chatgpt": {
+    "message": "Napsauta kaiutinkuvaketta jokaisen vastauksen vieressä lukeaksesi sen ääneen"
+  },
+  "languages_heading": {
+    "message": "Kieliasetukset"
+  },
+  "languages_back_button": {
+    "message": "Takaisin asetuksiin"
+  },
+  "google_translate_request_permission": {
+    "message": "Read Aloud haluaa käyttää Google-kääntäjää tekstistä puheeksi -toimintoon."
+  },
+  "google_translate_allow_button": {
+    "message": "Salli"
+  },
+  "google_translate_keep_page_open": {
+    "message": "Read Aloud käyttää Google-kääntäjää tekstistä puheeksi -toimintoon. Pidä tämä välilehti auki."
+  }
+}

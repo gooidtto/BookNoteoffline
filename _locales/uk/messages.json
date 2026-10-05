@@ -1,0 +1,170 @@
+{
+  "extension_name": {
+    "message": "Read Aloud: Читач тексту в голос"
+  },
+  "extension_short_name": {
+    "message": "Read Aloud"
+  },
+  "extension_description": {
+    "message": "Озвучте статтю поточної веб-сторінки одним кліком за допомогою синтезу мовлення (TTS). Підтримує понад 40 мов."
+  },
+  "options_heading": {
+    "message": "Налаштування"
+  },
+  "options_voice_label": {
+    "message": "Голос"
+  },
+  "options_voicegroup_offline": {
+    "message": "Офлайн голоси"
+  },
+  "options_voicegroup_experimental": {
+    "message": "Експериментальні AI голоси"
+  },
+  "options_voicegroup_googlecloud": {
+    "message": "Голоси Google Cloud"
+  },
+  "options_voicegroup_standard": {
+    "message": "Стандартні голоси"
+  },
+  "options_voicegroup_premium": {
+    "message": "Преміум голоси (потрібна покупка)"
+  },
+  "options_voicegroup_additional": {
+    "message": "Додаткові голоси"
+  },
+  "options_enable_premium_voices": {
+    "message": "Увімкнути преміум голоси"
+  },
+  "options_premium_voices_enabled": {
+    "message": "Преміум голоси увімкнено"
+  },
+  "options_add_more_languages": {
+    "message": "➕ Додати більше мов..."
+  },
+  "options_enable_custom_voices": {
+    "message": "🧩 Увімкнути користувацькі голоси..."
+  },
+  "options_enable_piper_voices": {
+    "message": "⚡ Встановити голоси Piper..."
+  },
+  "options_enable_supertonic_voices": {
+    "message": "⚡ Встановити голоси Supertonic..."
+  },
+  "options_rate_label": {
+    "message": "Швидкість"
+  },
+  "options_rate_warning": {
+    "message": "Примітка: деякі голоси можуть не працювати на високій швидкості."
+  },
+  "options_pitch_label": {
+    "message": "Висота тону"
+  },
+  "options_volume_label": {
+    "message": "Гучність"
+  },
+  "options_show_highlighting": {
+    "message": "Виділення тексту"
+  },
+  "options_highlighting_off": {
+    "message": "Вимкнути"
+  },
+  "options_highlighting_popup": {
+    "message": "Показати у спливаючому вікні"
+  },
+  "options_highlighting_window": {
+    "message": "Показати в окремому вікні"
+  },
+  "options_hotkeys_link": {
+    "message": "Редагувати гарячі клавіші"
+  },
+  "options_save_button": {
+    "message": "Зберегти"
+  },
+  "options_test_button": {
+    "message": "Тест"
+  },
+  "options_reset_button": {
+    "message": "Скинути"
+  },
+  "options_stop_button": {
+    "message": "Зупинити"
+  },
+  "options_success_status": {
+    "message": "Зміни збережено."
+  },
+  "options_logged_in_as": {
+    "message": "Увійшли як"
+  },
+  "options_account_button": {
+    "message": "Обліковий запис"
+  },
+  "options_logout_button": {
+    "message": "Вийти"
+  },
+  "context_read_selection": {
+    "message": "Прочитати виділений текст вголос"
+  },
+  "error_no_text": {
+    "message": "Не знайдено тексту для читання, спробуйте спочатку виділити текст, який хочете прочитати"
+  },
+  "error_no_voice": {
+    "message": "Мова не підтримується '{lang}'"
+  },
+  "error_upload_pdf": {
+    "message": "Будь ласка, скористайтеся формою для завантаження PDF-файлу для озвучення"
+  },
+  "error_ajax_pdf": {
+    "message": "Будь ласка, збережіть цей PDF-файл на комп'ютер і відкрийте його в [PDF переглядачі](open-pdf-viewer) для озвучення"
+  },
+  "error_page_unreadable": {
+    "message": "Неможливо озвучити цей веб-сайт"
+  },
+  "error_reader_mode": {
+    "message": "Будь ласка, запустіть озвучення *до* входу в режим читання"
+  },
+  "error_file_access": {
+    "message": "Немає доступу до локального файлу. Якщо це PDF-файл, будь ласка, відкрийте його в [PDF переглядачі](open-pdf-viewer) для озвучення"
+  },
+  "error_add_permissions": {
+    "message": "Потрібно надати Read Aloud додаткові [дозволи](request-permissions) для цього веб-сайту"
+  },
+  "error_login_required": {
+    "message": "Будь ласка, [увійдіть](sign-in), щоб використовувати преміум голоси"
+  },
+  "error_voice_unavailable": {
+    "message": "Голос недоступний, виберіть інший"
+  },
+  "error_payment_required": {
+    "message": "Кредит вичерпано"
+  },
+  "error_wavenet_auth_required": {
+    "message": "Потрібно надати додаткові [дозволи](auth-wavenet) для увімкнення голосів Google Wavenet"
+  },
+  "error_user_gesture_required": {
+    "message": "Натисніть [тут](user-gesture), щоб почати"
+  },
+  "error_phone_not_connected": {
+    "message": "Телефон не підключено. [Підключити](connect-phone)"
+  },
+  "error_phone_disconnected": {
+    "message": "Телефон відключено ({reason}). [Перепідключити](connect-phone)"
+  },
+  "error_chatgpt": {
+    "message": "Натисніть на іконку динаміка біля кожної відповіді, щоб її озвучити"
+  },
+  "languages_heading": {
+    "message": "Налаштування мови"
+  },
+  "languages_back_button": {
+    "message": "Назад до налаштувань"
+  },
+  "google_translate_request_permission": {
+    "message": "Read Aloud хоче використовувати Google Перекладач для синтезу мовлення."
+  },
+  "google_translate_allow_button": {
+    "message": "Дозволити"
+  },
+  "google_translate_keep_page_open": {
+    "message": "Read Aloud використовує Google Перекладач для синтезу мовлення. Будь ласка, тримайте цю вкладку відкритою."
+  }
+}
