@@ -1,0 +1,311 @@
+  });
+  note.excerptHighlights.push({start:range.start,end:range.end,color:color});
+  saveExcerptHighlights(note).then(function(){renderExcerptHighlights(card,note);window.getSelection().removeAllRanges();toast("高亮已保存");});
+}
+function clearExcerptHighlight(card,note){
+  var range=excerptSelectedRange(card);
+  if(!range){toast("请先选中要取消的高亮");return;}
+  note.excerptHighlights=excerptHighlightData(note).filter(function(h){
+    return !(h.end>range.start&&h.start<range.end);
+  });
+  saveExcerptHighlights(note).then(function(){renderExcerptHighlights(card,note);window.getSelection().removeAllRanges();toast("高亮已取消");});
+}
+
+var excerptSpeechState = {
+  synth: null, utterance: null, card: null, controlsRoot: null, target: null,
+  mode: "", status: "idle", cancelled: false
+};
+
+
+/* V7.9.46：统一朗读状态机。
+   “朗读目标”由各内容按钮决定；“暂停/继续/停止”只操作这个全局状态机。
+   所有朗读入口必须登记任务，避免出现“正在朗读但控制器认为没有任务”。 */
+window.booknoteSpeechController = window.booknoteSpeechController || {
+  active:false,
+  paused:false,
+  token:0,
+  source:null,
+  task:null
+};
+function booknoteSpeechBegin(source,task){
+  var c=window.booknoteSpeechController;
+  c.active=true;
+  c.paused=false;
+  c.stopped=false;
+  c.source=source||"unknown";
+  c.task=task||null;
+  c.token++;
+  return c.token;
+}
+function booknoteSpeechPauseResume(){
+  var c=window.booknoteSpeechController;
+  if(!c.active && !(window.speechSynthesis && window.speechSynthesis.speaking)){
+    return false;
+  }
+  try{
+    if(window.speechSynthesis){
+      if(window.speechSynthesis.paused){
+        window.speechSynthesis.resume();
+        c.paused=false;
+      }else{
+        window.speechSynthesis.pause();
+        c.paused=true;
+      }
+    }
+  }catch(e){}
+  return true;
+}
+function booknoteSpeechStopAll(){
+  var c=window.booknoteSpeechController;
+  c.token++;
+  c.active=false;
+  c.paused=false;
+  c.stopped=true;
+  c.source=null;
+  c.task=null;
+  try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+  /* 兼容旧版队列变量；如果存在则一并清空。 */
+  try{ if(typeof speechQueue!=="undefined" && Array.isArray(speechQueue)) speechQueue.length=0; }catch(e){}
+  try{ if(typeof currentSpeech!=="undefined") currentSpeech=null; }catch(e){}
+  try{ if(typeof speechTask!=="undefined") speechTask=null; }catch(e){}
+}
+function booknoteSpeechFinish(token){
+  var c=window.booknoteSpeechController;
+  if(token!==c.token)return;
+  c.active=false;
+  c.paused=false;
+  c.source=null;
+  c.task=null;
+}
+function booknoteSpeechHasTask(){
+  var c=window.booknoteSpeechController;
+  return !!(c.active || (window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.paused)));
+}
+function booknotePauseAllSpeech(){
+  return booknoteSpeechPauseResume();
+}
+function booknoteResumeAllSpeech(){
+  var c=window.booknoteSpeechController;
+  if(window.speechSynthesis){
+    try{window.speechSynthesis.resume();}catch(e){}
+  }
+  c.active=true;
+  c.paused=false;
+  return true;
+}
+function booknoteStopAllSpeech(){
+  booknoteSpeechStopAll();
+}
+function booknoteSpeechGuard(token){
+  return token===window.booknoteSpeechController.token && !window.booknoteSpeechController.stopped;
+}
+
+function speechControlsRoot(btnOrRoot){
+  if(!btnOrRoot)return null;
+  return btnOrRoot.closest ? (btnOrRoot.closest(".excerpt-controls-below,.note-excerpt-controls") || btnOrRoot) : btnOrRoot;
+}
+function speechTargetFromRoot(root){
+  if(!root)return null;
+  var block=root.closest ? root.closest(".block") : null;
+  if(!block)return null;
+  if(root.classList && root.classList.contains("note-excerpt-controls")){
+    return block.querySelector(".note-editor-wrap .note-editor-content, .note-editor-wrap textarea.text");
+  }
+  return block.querySelector(".quote");
+}
+function speechTextFromTarget(target){
+  if(!target)return "";
+  if(target.tagName==="TEXTAREA")return excerptNormalize(String(target.value||""));
+  if(target.classList && target.classList.contains("note-editor-content")){
+    return excerptNormalize(noteEditorText(target));
+  }
+  return excerptNormalize(String(target.innerText||target.textContent||""));
+}
+function speechSelectedTextFromTarget(target){
+  if(!target)return "";
+  if(target.tagName==="TEXTAREA"){
+    var ts=Number.isFinite(target.__booknoteSelectionStart)?target.__booknoteSelectionStart:target.selectionStart;
+    var te=Number.isFinite(target.__booknoteSelectionEnd)?target.__booknoteSelectionEnd:target.selectionEnd;
+    if(ts!==te && Number.isFinite(ts) && Number.isFinite(te)){
+      return excerptNormalize(String(target.value||"").slice(Math.min(ts,te),Math.max(ts,te)));
+    }
+    return "";
+  }
+  if(target.classList && target.classList.contains("note-editor-content")){
+    var na=Number.isFinite(target.__booknoteSelectionStart)?target.__booknoteSelectionStart:null;
+    var nb=Number.isFinite(target.__booknoteSelectionEnd)?target.__booknoteSelectionEnd:null;
+    var nt=noteEditorText(target);
+    if(na!==null&&nb!==null&&na!==nb){
+      return excerptNormalize(nt.slice(Math.min(na,nb),Math.max(na,nb)));
+    }
+    var nsel=window.getSelection();
+    if(nsel&&nsel.rangeCount&&!nsel.isCollapsed&&target.contains(nsel.anchorNode)&&target.contains(nsel.focusNode)){
+      return excerptNormalize(nsel.toString());
+    }
+    return "";
+  }
+  var sel=window.getSelection();
+  if(sel&&sel.rangeCount&&!sel.isCollapsed&&target.contains(sel.anchorNode)&&target.contains(sel.focusNode)){
+    return excerptNormalize(sel.toString());
+  }
+  return "";
+}
+
+function excerptNormalize(s){
+  return String(s||"").replace(/\s+/g," ").trim();
+}
+
+function excerptFindVoice(settings){
+  var synth=window.speechSynthesis;
+  var voices=synth && synth.getVoices ? synth.getVoices() : [];
+  if(!voices.length)return null;
+  var wanted=settings && settings.voiceName ? String(settings.voiceName) : "";
+  if(wanted){
+    var v=voices.find(function(x){
+      return x && (String(x.voiceName||"")===wanted || String(x.name||"")===wanted);
+    });
+    if(v)return v;
+  }
+  return voices.find(function(x){return x && x.localService;}) || voices[0] || null;
+}
+
+function excerptReadSettings(){
+  return browser.storage.local.get(["voiceName","rate","pitch","volume"]).then(function(r){
+    return {
+      voiceName:r.voiceName||"",
+      rate:Number(r.rate)||1,
+      pitch:typeof r.pitch==="number"?r.pitch:1,
+      volume:typeof r.volume==="number"?r.volume:1
+    };
+  });
+}
+
+function updateExcerptSpeechButtons(card,status,root){
+  if(!card)return;
+  root=root||speechControlsRoot(card.querySelector(".excerpt-controls-below"));
+  if(!root)return;
+  var toggle=root.querySelector('.excerpt-read[data-read-action="read-toggle"]');
+  var stop=root.querySelector('.excerpt-read[data-read-action="read-stop"]');
+  if(toggle){var paused=status==="paused",icon=paused?"play":"pause",label=paused?"继续":"暂停 / 继续";toggle.innerHTML=bnIcon(icon,"sm")+label;}
+  if(stop){stop.disabled=status==="idle";stop.innerHTML=bnIcon("stop","sm")+"停止";}
+  root.classList.toggle("excerpt-reading",status!=="idle");
+}
+
+function stopExcerptSpeech(){
+  var st=excerptSpeechState;
+  st.cancelled=true;
+  try{ booknoteSpeechStopAll(); }catch(_){ try{ if(window.speechSynthesis)window.speechSynthesis.cancel(); }catch(__){} }
+  if(st.card)updateExcerptSpeechButtons(st.card,"idle",st.controlsRoot);
+  excerptSpeechState={
+    synth:window.speechSynthesis||null,utterance:null,card:null,controlsRoot:null,target:null,mode:"",status:"idle",cancelled:false
+  };
+}
+
+function startExcerptSpeech(card, mode, controlsRoot){
+  var synth=window.speechSynthesis;
+  if(!synth){toast("系统语音不可用");return;}
+
+  controlsRoot=speechControlsRoot(controlsRoot);
+  var target=speechTargetFromRoot(controlsRoot);
+  var allText=speechTextFromTarget(target);
+  if(!allText){toast(controlsRoot && controlsRoot.classList.contains("note-excerpt-controls") ? "我的笔记没有可朗读内容" : "该条原文摘录没有可朗读内容");return;}
+
+  // 新任务先绝对停止旧任务，避免两个区域同时朗读。
+  stopExcerptSpeech();
+
+  var text=allText;
+  var selected=excerptNormalize(speechSelectedTextFromTarget(target));
+  if(!selected && controlsRoot && controlsRoot.__excerptSelectionText){
+    selected=excerptNormalize(controlsRoot.__excerptSelectionText);
+  }
+
+  if(mode==="read-selection"){
+    if(!selected){
+      toast(controlsRoot && controlsRoot.classList.contains("note-excerpt-controls")
+        ? "请先在“我的笔记（可编辑）”中选中要朗读的内容"
+        : "请先在“原文摘录（只读）”中选中要朗读的内容");
+      return;
+    }
+    text=selected;
+  }else if(mode==="read-current"){
+    if(!selected){
+      toast(controlsRoot && controlsRoot.classList.contains("note-excerpt-controls")
+        ? "请先在“我的笔记（可编辑）”中选中朗读起点"
+        : "请先在“原文摘录（只读）”中选中朗读起点");
+      return;
+    }
+    var pos=excerptNormalize(allText).indexOf(selected);
+    if(pos<0){toast("无法确认当前选中位置");return;}
+    text=excerptNormalize(allText).slice(pos);
+  }else if(mode==="read-home"){
+    text=allText;
+  }
+
+  var st={
+    synth:synth,utterance:null,card:card,controlsRoot:controlsRoot,target:target,mode:mode,status:"speaking",cancelled:false,controllerToken:0
+  };
+  try{ st.controllerToken=booknoteSpeechBegin("excerpt",{card:card,mode:mode}); }catch(_){ st.controllerToken=0; }
+  excerptSpeechState=st;
+  updateExcerptSpeechButtons(card,"speaking",controlsRoot);
+
+  excerptReadSettings().then(function(settings){
+    if(excerptSpeechState!==st || st.cancelled || (st.controllerToken && !booknoteSpeechGuard(st.controllerToken)))return;
+
+    var u=new SpeechSynthesisUtterance(text);
+    var v=excerptFindVoice(settings);
+    if(v)u.voice=v;
+    if(v && v.lang)u.lang=v.lang;
+    if(isFinite(settings.rate) && settings.rate>0)u.rate=settings.rate;
+    if(isFinite(settings.pitch) && settings.pitch>=0)u.pitch=settings.pitch;
+    if(isFinite(settings.volume) && settings.volume>=0)u.volume=Math.min(1,settings.volume);
+
+    st.utterance=u;
+
+    u.onend=function(){
+      if(excerptSpeechState!==st)return;
+      st.status="idle";
+      if(st.controllerToken)booknoteSpeechFinish(st.controllerToken);
+      updateExcerptSpeechButtons(card,"idle",controlsRoot);
+      excerptSpeechState={
+        synth:synth,utterance:null,card:null,controlsRoot:null,target:null,mode:"",status:"idle",cancelled:false
+      };
+    };
+    u.onerror=function(){
+      if(excerptSpeechState!==st)return;
+      st.status="idle";
+      if(st.controllerToken)booknoteSpeechFinish(st.controllerToken);
+      updateExcerptSpeechButtons(card,"idle",controlsRoot);
+      excerptSpeechState={
+        synth:synth,utterance:null,card:null,controlsRoot:null,target:null,mode:"",status:"idle",cancelled:false
+      };
+    };
+    synth.speak(u);
+  }).catch(function(){
+    if(excerptSpeechState===st){
+      if(st.controllerToken)booknoteSpeechFinish(st.controllerToken);
+      updateExcerptSpeechButtons(card,"idle",controlsRoot);
+      excerptSpeechState={
+        synth:synth,utterance:null,card:null,controlsRoot:null,target:null,mode:"",status:"idle",cancelled:false
+      };
+    }
+    toast("朗读设置读取失败");
+  });
+}
+
+function bindExcerptSelectionTracking(card){
+  var q=card.querySelector(".quote");
+  if(!q)return;
+  q.addEventListener("mouseup",function(){
+    setTimeout(function(){
+      var sel=window.getSelection();
+      if(!sel || sel.isCollapsed)return;
+      var text=excerptNormalize(sel.toString());
+      if(!text)return;
+      try{
+        var node=sel.anchorNode;
+        if(node && (node===q || q.contains(node))){
+          card.__excerptSelection=text;
+          var cr=card.querySelector(".excerpt-controls-below");
+          if(cr)cr.__excerptSelectionText=text;
+        }
+      }catch(_){}

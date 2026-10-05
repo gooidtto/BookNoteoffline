@@ -1,0 +1,366 @@
+   var segEnd=cut;
+   while(segEnd>segStart&&/[\s\u00a0\u3000]/.test(source.charAt(segEnd-1)))segEnd--;
+   if(segEnd>segStart){
+     var spoken=source.slice(segStart,segEnd);
+     out.push({text:spoken,sectionIndex:idx,start:segStart,end:segEnd,sequence:out.length,sentenceStart:segStart,sentenceEnd:segEnd});
+   }
+   cursor=cut;
+ }
+ return out;
+}
+function readerSpeechQueueFromChapters(startChapter,startOffset){var out=[],begin=Math.max(0,Number(startChapter)||0),off=Math.max(0,Number(startOffset)||0);for(var i=begin;i<state.chapters.length;i++){var t=String(state.chapters[i]&&state.chapters[i].text||"");if(!t)continue;var local=i===begin?Math.min(off,t.length):0;var qs=readerSpeechQueueFromText(t,i,local);out.push.apply(out,qs);}return out;}
+function readerSpeechQueueFromSelection(selection){if(!selection||!selection.text)return [];var idx=Number(selection.chapterIndex)||0,base=Number((state.canonicalChapters[idx]||{}).textStart)||0,start=Math.max(0,Number(selection.start||0)-base),end=Math.max(start,Number(selection.end||0)-base);return readerSpeechQueueFromText(selection.text,idx,start,end);}
+function readerSpeechUpdate(){var t=$("readToggleBtn"),s=$("readStopBtn"),q=$("readSentenceFollowBtn"),w=$("readWordFollowBtn");if(t){var paused=readerSpeechState.status==="paused",icon=paused?"play":"pause",label=paused?"继续":"暂停 / 继续";t.innerHTML=bnIcon(icon,"sm")+label;}if(s){s.disabled=readerSpeechState.status==="idle";s.innerHTML=bnIcon("stop","sm")+"停止朗读";}if(q){q.innerHTML=bnIcon("highlight","sm")+"逐句跟随："+(readerSpeechState.sentenceFollowHighlight?"开":"关");q.setAttribute("aria-pressed",readerSpeechState.sentenceFollowHighlight?"true":"false");q.classList.toggle("active",readerSpeechState.sentenceFollowHighlight);}if(w){w.innerHTML=bnIcon("highlight","sm")+"逐字/词组跟随："+(readerSpeechState.wordFollowHighlight?"开":"关");w.setAttribute("aria-pressed",readerSpeechState.wordFollowHighlight?"true":"false");w.classList.toggle("active",readerSpeechState.wordFollowHighlight);}}
+function toggleSearchFloat(open){var bar=$("searchBar"),b=$("searchFloatBtn");if(!bar||!b)return;var show=typeof open==="boolean"?open:bar.hidden;if(show){bar.hidden=false;b.setAttribute("aria-expanded","true");b.classList.add("active");showReaderSearchHistory();setTimeout(function(){var i=$("searchInput");if(i)i.focus()},0)}else{bar.hidden=true;b.setAttribute("aria-expanded","false");b.classList.remove("active");hideReaderSearchHistory()}}
+function toggleTtsPanel(open){var p=$("ttsPanel"),b=$("ttsFloatBtn");if(!p||!b)return;var show=typeof open==="boolean"?open:p.hidden;if(show){p.hidden=false;b.setAttribute("aria-expanded","true");b.classList.add("active")}else{p.hidden=true;b.setAttribute("aria-expanded","false");b.classList.remove("active")}}
+function readerSpeechResolveLiveRange(item){
+ var rt=state.runtime;if(!rt||!rt.iframe||!item)return null;
+ var doc=rt.iframe.contentDocument;if(!doc)return null;
+ var query=String(typeof item==='string'?item:(item.text||'')).trim();if(!query)return null;
+ var sentenceId=typeof item==='string'?'':String((item.epubLocator&&item.epubLocator.sentenceId)||item.sentenceId||'');
+ var qoff=typeof item==='string'?0:Number(item.queryOffsetInSentence)||0;
+ /* v7.12.39: every EPUB speech sentence must be forward-only. A resolver result
+    is accepted only when its live DOM position is not before the canonical item.start.
+    This prevents duplicate text from jumping back to an earlier occurrence. */
+ var canonicalStart=Number(item&&item.start);if(!Number.isFinite(canonicalStart)||canonicalStart<0)canonicalStart=Math.max(0,qoff);
+ try{
+   if(!(rt.isEpubMulti&&rt.isEpubMulti())&&rt.canonicalToDom&&item.sectionIndex!=null){try{var grx=rt.canonicalToDom(Number(item.sectionIndex)||0,canonicalStart,Number(item.end)!=null?Number(item.end):canonicalStart+query.length,query,{strict:true});if(grx&&grx.start&&grx.end){var gx=doc.createRange();gx.setStart(grx.start.node,grx.start.offset);gx.setEnd(grx.end.node,grx.end.offset);if(!gx.collapsed&&strictReaderText(gx.toString())===strictReaderText(query))return {start:grx.start,end:grx.end,range:gx,method:'canonical-office-txt'};}}catch(_){} }
+   var root=doc.getElementById('source')||doc.body;
+   var NF=(doc.defaultView&&doc.defaultView.NodeFilter)||NodeFilter;
+   var w=doc.createTreeWalker(root,NF.SHOW_TEXT),nodes=[],n,raw='',total=0;
+   while((n=w.nextNode())){
+     if(n.parentElement&&/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|INPUT)$/i.test(n.parentElement.tagName))continue;
+     var t=String(n.nodeValue||'');if(!t)continue;
+     nodes.push({node:n,start:total,end:total+t.length});raw+=t;total+=t.length;
+   }
+   function absPos(pt){if(!pt||!pt.node)return -1;for(var ii=0;ii<nodes.length;ii++){if(nodes[ii].node===pt.node)return nodes[ii].start+Math.max(0,Math.min(nodes[ii].node.nodeValue.length,Number(pt.offset)||0));}return -1;}
+   if(sentenceId&&rt.epubResolveSentence){
+     try{
+       var rr=rt.epubResolveSentence(sentenceId,query,qoff,item.sectionIndex);
+       if(rr){
+         var a=rr.start||{node:rr.startContainer,offset:rr.startOffset},b=rr.end||{node:rr.endContainer,offset:rr.endOffset};
+         var ap=absPos(a),bp=absPos(b);
+         /* The resolver is only valid if its occurrence is at/after the canonical
+            sentence position and the returned text is an exact match. */
+         if(a&&b&&a.node&&b.node&&ap>=canonicalStart&&bp>=ap){
+           try{
+             var vr=doc.createRange();vr.setStart(a.node,a.offset);vr.setEnd(b.node,b.offset);
+             if(!vr.collapsed&&strictReaderText(vr.toString())===strictReaderText(query))return {start:a,end:b,range:vr,method:'sentence-forward'};
+           }catch(_){ }
+         }
+       }
+     }catch(_){ }
+   }
+   /* Forward-only live-DOM fallback. Never search before canonicalStart. */
+   var pos=raw.indexOf(query,Math.max(0,canonicalStart));
+   if(pos<0){
+     var folded='',starts=[],ends=[],i=0;
+     while(i<raw.length){var c=raw.charAt(i);if(/\s/.test(c)){var j=i+1;while(j<raw.length&&/\s/.test(raw.charAt(j)))j++;if(folded&&folded.charAt(folded.length-1)!==' '){folded+=' ';starts.push(i);ends.push(j);}i=j;continue;}folded+=c;starts.push(i);ends.push(i+1);i++;}
+     if(folded.charAt(folded.length-1)===' '){folded=folded.slice(0,-1);starts.pop();ends.pop();}
+     var qn=query.replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+     var foldedTarget=Math.max(0,Math.min(folded.length,canonicalStart));
+     var fp=folded.indexOf(qn,foldedTarget);
+     if(fp>=0){var ps=starts[fp],pe=ends[fp+qn.length-1];if(ps>=canonicalStart)return readerSpeechRangeFromOffsets(doc,nodes,ps,pe,'live-normalized-forward');}
+   }
+   if(pos>=canonicalStart)return readerSpeechRangeFromOffsets(doc,nodes,pos,pos+query.length,'live-exact-forward');
+ }catch(_){ }
+ return null;
+}
+function readerSpeechRangeFromOffsets(doc,nodes,start,end,method){
+ var a=null,b=null;
+ for(var i=0;i<nodes.length;i++){if(a===null&&start>=nodes[i].start&&start<=nodes[i].end)a={node:nodes[i].node,offset:Math.max(0,Math.min(nodes[i].node.nodeValue.length,start-nodes[i].start))};if(end>=nodes[i].start&&end<=nodes[i].end){b={node:nodes[i].node,offset:Math.max(0,Math.min(nodes[i].node.nodeValue.length,end-nodes[i].start))};break;}}
+ if(!a||!b)return null;
+ try{var r=doc.createRange();r.setStart(a.node,a.offset);r.setEnd(b.node,b.offset);if(!r.collapsed)return {start:a,end:b,range:r,method:method};}catch(_){}
+ return null;
+}
+function clearSpeechWordMarks(){
+  try{
+    var d=state.runtime&&state.runtime.iframe&&state.runtime.iframe.contentDocument;
+    if(d){
+      var win=d.defaultView||window;
+      if(win.CSS&&win.CSS.highlights){try{win.CSS.highlights.delete("booknote-speech-word");}catch(_){}}
+      d.querySelectorAll("mark.reader-speech-word-hit").forEach(function(m){var p=m.parentNode;if(!p)return;while(m.firstChild)p.insertBefore(m.firstChild,m);p.removeChild(m)});
+      /* Word mode must not normalize the EPUB body: normalization can merge live text
+         nodes and invalidate the Character Map while speech is running. */
+      if(!readerSpeechState.wordFollowHighlight&&d.body)d.body.normalize();
+    }
+  }catch(_){}
+  readerSpeechInvalidateCharacterMap();
+}
+function readerSpeechPaintWordRange(doc,range){
+  if(!doc||!range||range.collapsed)return false;
+  /* TXT/ODT/DOCX must use a real DOM mark as the authoritative visual layer.
+     CSS Custom Highlight can expose CSS.highlights/Highlight in some Firefox
+     builds while ::highlight() is not actually painted in the Reader iframe.
+     That produced the exact failure mode: speech + follow worked, but no
+     visible word highlight.  Do not report success until a DOM mark exists. */
+  try{
+    var ok=wrapReaderRange(doc,{node:range.startContainer,offset:range.startOffset},{node:range.endContainer,offset:range.endOffset},"reader-speech-word-hit",null,"",strictReaderText(range.toString()));
+    if(ok){
+      var marks=doc.querySelectorAll("mark.reader-speech-word-hit");
+      if(marks&&marks.length)return true;
+    }
+  }catch(_){}
+  /* CSS Highlight is a last-resort fallback only when DOM wrapping cannot be
+     performed. Never let CSS.highlights alone make the paint path appear
+     successful. */
+  try{
+    var win=doc.defaultView||window,css=win.CSS;
+    if(css&&css.highlights&&typeof win.Highlight==='function'){
+      var h=new win.Highlight(range);
+      css.highlights.set("booknote-speech-word",h);
+      return true;
+    }
+  }catch(_){}
+  return false;
+}
+function readerSpeechWordRange(base,text,charIndex,charLength){if(!base)return null;var doc=base.ownerDocument||((base.range&&base.range.startContainer)&&base.range.startContainer.ownerDocument);if(!doc)return null;var rawNodes=[],raw="",n;try{var r=base.range||base;if(!r.startContainer||!r.endContainer)return null;var root=doc.getElementById("source")||doc.body;var walker=doc.createTreeWalker(root,(doc.defaultView&&doc.defaultView.NodeFilter||NodeFilter).SHOW_TEXT);while((n=walker.nextNode())){var t=String(n.nodeValue||"");if(!t)continue;var probe=doc.createRange();probe.selectNodeContents(n);var before=probe.compareBoundaryPoints(Range.END_TO_START,r)<=0,after=probe.compareBoundaryPoints(Range.START_TO_END,r)>=0;if(before||after)continue;var a=0,b=t.length;if(n===r.startContainer)a=r.startOffset;if(n===r.endContainer)b=r.endOffset;if(b>a){rawNodes.push({node:n,start:raw.length,end:raw.length+(b-a),sourceStart:a});raw+=t.slice(a,b);}}}catch(_){return null;}
+ if(!raw)return null;var query=String(text||"").replace(/\u00a0/g," ").replace(/\s+/g," ").trim();var folded="",starts=[],ends=[],i=0;while(i<raw.length){var c=raw.charAt(i);if(/\s/.test(c)){var j=i+1;while(j<raw.length&&/\s/.test(raw.charAt(j)))j++;if(folded&&folded.charAt(folded.length-1)!==" "){folded+=" ";starts.push(i);ends.push(j);}i=j;continue;}folded+=c;starts.push(i);ends.push(i+1);i++;}if(folded.charAt(folded.length-1)===" "){folded=folded.slice(0,-1);starts.pop();ends.pop();}
+ var ci=Math.max(0,Number(charIndex)||0),cl=Math.max(0,Number(charLength)||0);if(ci>=query.length&&ci>=folded.length)return null;var targetStart=Math.min(ci,Math.max(0,folded.length-1)),targetEnd=cl>0?Math.min(folded.length,targetStart+cl):targetStart+1;
+ /* Boundary without charLength: SpeechSynthesis remains the clock; use a natural
+    word/phrase segment for the visual unit instead of forcing one Han character. */
+ if(cl<=0&&targetStart<query.length){
+   var c0=query.charAt(targetStart),isCjk=/[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(c0);
+   try{
+     if(typeof Intl!=="undefined"&&Intl.Segmenter){
+       var seg=new Intl.Segmenter(isCjk?"zh-CN":"en-US",{granularity:"word"}),found=null;
+       for(var sg of seg.segment(query)){
+         var ss=Number(sg.index)||0,ee=ss+String(sg.segment||"").length;
+         if(targetStart>=ss&&targetStart<ee){found={start:ss,end:ee};break;}
+       }
+       if(found&&found.end>found.start){targetStart=found.start;targetEnd=Math.min(folded.length,found.end);}
+     }
+   }catch(_){}
+   /* CJK fallback: a short 2–4 character phrase, never across punctuation. */
+   if(targetEnd<=targetStart+1&&isCjk){
+     var phraseEnd=targetStart+1,phraseCount=1;
+     while(phraseEnd<query.length&&phraseCount<4&&!/[\s\u3000，。！？；：、,.!?;:"'“”‘’()（）\[\]【】]/.test(query.charAt(phraseEnd))){phraseEnd++;phraseCount++;}
+     targetEnd=Math.min(folded.length,phraseEnd);
+   }
+   if(!isCjk&&targetEnd<=targetStart+1){
+     var j2=targetStart+1;
+     while(j2<query.length&&!/[\s\u3000，。！？；：、,.!?;:"'“”‘’()（）\[\]【】]/.test(query.charAt(j2)))j2++;
+     targetEnd=Math.min(folded.length,j2);
+   }
+ }
+ if(targetStart>=starts.length)return null;var rs=starts[targetStart],re=ends[Math.max(targetStart,targetEnd-1)];if(re<=rs)return null;var a=null,b=null;for(var k=0;k<rawNodes.length;k++){var x=rawNodes[k];if(!a&&rs>=x.start&&rs<=x.end)a={node:x.node,offset:Math.max(0,Math.min(x.node.nodeValue.length,rs-x.start))};if(re>=x.start&&re<=x.end){b={node:x.node,offset:Math.max(0,Math.min(x.node.nodeValue.length,re-x.start))};break;}}if(!a||!b)return null;try{var r=doc.createRange();r.setStart(a.node,a.offset);r.setEnd(b.node,b.offset);return r.collapsed?null:{start:a,end:b,range:r};}catch(_){return null;}}
+function readerSpeechSpeechBoundarySegment(text,charIndex,charLength){
+ var q=String(text||"").replace(/\u00a0/g," ").replace(/\s+/g," ").trim();
+ if(!q)return null;
+ var ci=Math.max(0,Number(charIndex)||0),cl=Math.max(0,Number(charLength)||0);
+ if(ci>=q.length)return null;
+ var start=Math.min(ci,q.length-1),end=cl>0?Math.min(q.length,start+cl):start+1;
+ var c0=q.charAt(start),isCjk=/[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(c0);
+ if(cl<=0){
+   try{
+     if(typeof Intl!=="undefined"&&Intl.Segmenter){
+       var seg=new Intl.Segmenter(isCjk?"zh-CN":"en-US",{granularity:"word"});
+       for(var sg of seg.segment(q)){var ss=Number(sg.index)||0,ee=ss+String(sg.segment||"").length;if(start>=ss&&start<ee){start=ss;end=ee;break;}}
+     }
+   }catch(_){}
+   if(end<=start+1&&isCjk){var pe=start+1,nc=1;while(pe<q.length&&nc<4&&!/[\s\u3000，。！？；：、,.!?;:\"'“”‘’()（）\[\]【】]/.test(q.charAt(pe))){pe++;nc++;}end=Math.min(q.length,pe);}
+   if(end<=start+1&&!isCjk){var je=start+1;while(je<q.length&&!/[\s\u3000，。！？；：、,.!?;:\"'“”‘’()（）\[\]【】]/.test(q.charAt(je)))je++;end=Math.min(q.length,je);}
+ }
+ return {text:q,start:start,end:end};
+}
+function readerSpeechBuildCharacterMap(doc,sectionIndex){
+ /* v7.12.43: non-destructive Speech Character Map. Never rewrites EPUB DOM. */
+ if(!doc)return null;
+ var cached=readerSpeechState.speechCharacterMap;
+ if(cached&&cached.doc===doc&&cached.sectionIndex===Number(sectionIndex))return cached;
+ var root=doc.getElementById('source')||doc.body;
+ var NF=(doc.defaultView&&doc.defaultView.NodeFilter)||NodeFilter;
+ var walker=doc.createTreeWalker(root,NF.SHOW_TEXT),nodes=[],raw='',n;
+ while((n=walker.nextNode())){
+   if(n.parentElement&&/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|INPUT)$/i.test(n.parentElement.tagName))continue;
+   var t=String(n.nodeValue||'');if(!t)continue;
+   nodes.push({node:n,start:raw.length,end:raw.length+t.length});raw+=t;
+ }
+ var folded='',mapStart=[],mapEnd=[],i=0;
+ while(i<raw.length){
+   var c=raw.charAt(i);
+   if(/\s/.test(c)){
+     var j=i+1;while(j<raw.length&&/\s/.test(raw.charAt(j)))j++;
+     if(folded&&folded.charAt(folded.length-1)!==' '){folded+=' ';mapStart.push(i);mapEnd.push(j);}
+     i=j;continue;
+   }
+   folded+=c;mapStart.push(i);mapEnd.push(i+1);i++;
+ }
+ if(folded.charAt(folded.length-1)===' '){folded=folded.slice(0,-1);mapStart.pop();mapEnd.pop();}
+ cached={doc:doc,sectionIndex:Number(sectionIndex),nodes:nodes,raw:raw,folded:folded,mapStart:mapStart,mapEnd:mapEnd};
+ readerSpeechState.speechCharacterMap=cached;
+ return cached;
+}
+function readerSpeechInvalidateCharacterMap(){readerSpeechState.speechCharacterMap=null;}
+function readerSpeechIndependentWordRange(item,text,charIndex,charLength){
+ /* Stable Word/Phrase Contract for TXT/ODT/DOCX:
+    Speech charIndex is relative to the exact source-contiguous sentence item.
+    We map that coordinate directly into the item's canonical DOM Range.
+    Never search the chapter for the word text, so repeated words cannot jump backward. */
+ if(!item||!state.runtime||!state.runtime.iframe)return null;
+ var doc=state.runtime.iframe.contentDocument;if(!doc)return null;
+ var idx=Number(item.sectionIndex)||0, itemStart=Number(item.start)||0, itemEnd=Number(item.end);if(!Number.isFinite(itemEnd)||itemEnd<=itemStart)itemEnd=itemStart+String(text||'').length;
+ var base=null;
+ /* v7.14.77: Word/Phrase MUST derive from the same live DOM sentence Range
+    that already passes the working Sentence-Follow path. The previous version
+    rebuilt the sentence through canonicalToDom() first; TXT/ODT/DOCX can have
+    presentation-only whitespace/TextNode normalization, so that strict mapping
+    could fail even though readerSpeechResolveLiveRange() was valid. */
+ try{
+   var liveSentence=readerSpeechResolveLiveRange(item);
+   if(liveSentence&&liveSentence.start&&liveSentence.end){
+     base={start:liveSentence.start,end:liveSentence.end,range:liveSentence.range,method:'live-sentence-base'};
+   }
+ }catch(_){base=null;}
+ if(!base||!base.start||!base.end){
+   try{
+     if(state.runtime.canonicalToDom){
+       base=state.runtime.canonicalToDom(idx,itemStart,itemEnd,String(text||''),{strict:true});
+     }
+   }catch(_){base=null;}
+ }
+ if(!base||!base.start||!base.end)return null;
+ var br;
+ try{br=doc.createRange();br.setStart(base.start.node,base.start.offset);br.setEnd(base.end.node,base.end.offset);}catch(_){return null;}
+ if(br.collapsed)return null;
+ var q=String(text||'');
+ var ci=Math.max(0,Math.min(Number(charIndex)||0,q.length));
+ var cl=Math.max(0,Number(charLength)||0);
+ var seg=readerSpeechSpeechBoundarySegment(q,ci,cl);if(!seg)return null;
+ var exactStart=seg.start, exactEnd=seg.end;
+ var range=readerSpeechRangeByRelativeOffsets(doc,br,exactStart,exactEnd);
+ if(!range)return null;
+ return {start:{node:range.startContainer,offset:range.startOffset},end:{node:range.endContainer,offset:range.endOffset},range:range,absoluteStart:itemStart+exactStart,absoluteEnd:itemStart+exactEnd};
+}
+function readerSpeechRangeByRelativeOffsets(doc,baseRange,start,end){
+ if(!doc||!baseRange||end<=start)return null;
+ var root=doc.getElementById('source')||doc.body,NF=(doc.defaultView&&doc.defaultView.NodeFilter)||NodeFilter,walker=doc.createTreeWalker(root,NF.SHOW_TEXT),nodes=[],rawLen=0,n;
+ while((n=walker.nextNode())){
+   if(n.parentElement&&/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|INPUT)$/i.test(n.parentElement.tagName))continue;
+   var probe=doc.createRange();try{probe.selectNodeContents(n);}catch(_){continue;}
+   var before=probe.compareBoundaryPoints(Range.END_TO_START,baseRange)<=0,after=probe.compareBoundaryPoints(Range.START_TO_END,baseRange)>=0;if(before||after)continue;
+   var a=0,b=n.nodeValue.length;if(n===baseRange.startContainer)a=baseRange.startOffset;if(n===baseRange.endContainer)b=baseRange.endOffset;if(b>a){nodes.push({node:n,start:rawLen,end:rawLen+(b-a),sourceStart:a});rawLen+=b-a;}
+ }
+ if(start<0||end>rawLen||end<=start)return null;
+ var aPoint=null,bPoint=null;
+ for(var i=0;i<nodes.length;i++){
+   var x=nodes[i];
+   if(!aPoint&&start>=x.start&&start<=x.end)aPoint={node:x.node,offset:x.sourceStart+(start-x.start)};
+   if(end>=x.start&&end<=x.end){bPoint={node:x.node,offset:x.sourceStart+(end-x.start)};break;}
+ }
+ if(!aPoint||!bPoint)return null;
+ try{var r=doc.createRange();r.setStart(aPoint.node,aPoint.offset);r.setEnd(bPoint.node,bPoint.offset);return r.collapsed?null:r;}catch(_){return null;}
+}
+function readerSpeechResolveFollowScrollRoot(doc){
+  if(!doc)return null;
+  try{
+    var html=doc.documentElement,body=doc.body,sc=doc.scrollingElement;
+    /* TXT/ODT/DOCX Reader pages explicitly put overflow-y:auto on BODY.
+       Firefox may still expose HTML as document.scrollingElement, so prefer
+       BODY when it is the element that actually owns vertical overflow. */
+    if(body){
+      var by=String((doc.defaultView||window).getComputedStyle(body).overflowY||"").toLowerCase();
+      if((by==="auto"||by==="scroll")&&body.scrollHeight>body.clientHeight+2)return body;
+    }
+    if(sc&&sc.scrollHeight>sc.clientHeight+2)return sc;
+    if(body&&body.scrollHeight>body.clientHeight+2)return body;
+    return sc||html||body;
+  }catch(_){return doc.scrollingElement||doc.documentElement||doc.body;}
+}
+function readerSpeechSmartFollowWord(doc,range){
+  if(!doc||!range||!readerSpeechState.wordFollowHighlight)return false;
+  try{
+    var rect=range.getBoundingClientRect();
+    if(!rect||!Number.isFinite(rect.top)||!Number.isFinite(rect.bottom)||(!rect.width&&!rect.height))return false;
+    var win=doc.defaultView||window;
+    var root=readerSpeechResolveFollowScrollRoot(doc);
+    if(!root)return false;
+    var viewportRect=root.getBoundingClientRect?root.getBoundingClientRect():null;
+    var viewportTop=viewportRect?Number(viewportRect.top)||0:0;
+    var viewportH=Math.max(1,Number(root.clientHeight)||Number(win.innerHeight)||0);
+    if(!viewportH)return false;
+
+    /* Range geometry is viewport-relative. Convert it into the actual Reader
+       scroll-root coordinate before applying the 30%-70% comfort band. */
+    var wordCenter=(rect.top-viewportTop)+Math.max(1,rect.height)/2;
+    var upper=viewportH*0.30;
+    var lower=viewportH*0.70;
+    var center=viewportH*0.50;
+    var initialCenter=!!readerSpeechState.followInitialCenter;
+    if(!initialCenter&&wordCenter>=upper&&wordCenter<=lower)return false;
+    if(initialCenter&&wordCenter>=upper&&wordCenter<=lower){readerSpeechState.followInitialCenter=false;return false;}
+
+    var delta=wordCenter-center;
+    var now=Date.now();
+    var last=Number(readerSpeechState.lastFollowScrollAt)||0;
+    var lastTop=readerSpeechState.lastFollowScrollTop;
+    var currentTop=Number(root.scrollTop)||0;
+    var maxTop=Math.max(0,(Number(root.scrollHeight)||0)-(Number(root.clientHeight)||0));
+    var target=Math.max(0,Math.min(maxTop,currentTop+delta));
+
+    if(now-last<220 && lastTop!==null && Math.abs(target-Number(lastTop))<viewportH*0.35)return false;
+
+    readerSpeechState.lastFollowScrollAt=now;
+    readerSpeechState.lastFollowScrollTop=target;
+    readerSpeechState.followInitialCenter=false;
+    try{
+      root.scrollTo({top:target,left:Number(root.scrollLeft)||0,behavior:"smooth"});
+    }catch(_){
+      try{root.scrollTop=target;}catch(__){}
+    }
+    if(state.runtime&&state.runtime.updateScrollState)state.runtime.updateScrollState();
+    return true;
+  }catch(_){return false;}
+}
+function readerSpeechApplyWordBoundary(e,forceCurrent){
+ if(!readerSpeechState.wordFollowHighlight||readerSpeechState.status!="speaking")return;
+ if(e&&e.name&&String(e.name).toLowerCase()!=="word")return;
+ var item=readerSpeechState.currentSpeechItem,text=readerSpeechState.currentSpeakText;if(!item||!text)return;
+ var ci=Number(e&&e.charIndex);if(!Number.isFinite(ci)||ci<0)ci=0;
+ var cl=Number(e&&e.charLength);if(!Number.isFinite(cl)||cl<0)cl=0;
+ var prevCi=Number(readerSpeechState.currentBoundaryIndex)||0;
+ var prevCl=Number(readerSpeechState.currentBoundaryLength)||0;
+ /* Speech boundary clock is monotonic inside one sentence. Older/duplicate events are ignored. */
+ if(ci<prevCi||(ci===prevCi&&cl<=prevCl&&Number(readerSpeechState.currentWordAbsStart)>=0))return;
+ var wr=readerSpeechIndependentWordRange(item,text,ci,cl);if(!wr)return;
+ var absStart=Number(wr.absoluteStart),absEnd=Number(wr.absoluteEnd);
+ if(!forceCurrent&&Number.isFinite(readerSpeechState.currentWordAbsStart)&&readerSpeechState.currentWordAbsStart>=0&&absStart<=readerSpeechState.currentWordAbsStart)return;
+ var liveDoc=state.runtime&&state.runtime.iframe&&state.runtime.iframe.contentDocument;if(!liveDoc)return;
+ readerSpeechState.currentBoundaryIndex=ci;readerSpeechState.currentBoundaryLength=cl;readerSpeechState.currentWordAbsStart=absStart;
+ readerSpeechClearNativeSelection(liveDoc);
+ clearSpeechWordMarks();
+ readerSpeechPurgeSentenceVisual(liveDoc);
+ var ok=readerSpeechPaintWordRange(liveDoc,wr.range);
+ if(ok&&readerSpeechState.wordFollowHighlight)readerSpeechSmartFollowWord(liveDoc,wr.range);
+}
+function readerSpeechRevealNewSegment(item,previousItem){
+  if(!state.runtime||!state.runtime.iframe||!item)return;
+  var sectionChanged=!!previousItem&&Number(previousItem.sectionIndex)!==Number(item.sectionIndex);
+  var prevChapterId=previousItem&&String(previousItem.logicalChapterId||"");
+  var nextChapterId=String(item.logicalChapterId||"");
+  var chapterChanged=!!previousItem&&((prevChapterId&&nextChapterId&&prevChapterId!==nextChapterId)||(!prevChapterId&&!nextChapterId&&Number(previousItem.logicalChapterIndex||0)!==Number(item.logicalChapterIndex||0)));
+  if(!sectionChanged&&!chapterChanged)return;
+  try{
+    var d=state.runtime.iframe.contentDocument,root=d&&(d.scrollingElement||d.documentElement);
+    if(!root)return;
+    root.scrollTo({top:0,left:0,behavior:"auto"});
+    state.runtime.currentOffset=0;
+  }catch(_){}
+}
+function readerSpeechApplyVisualMode(){
+  /* v7.12.45: there is no master "Speech Highlight Follow" switch.
+     The selected mode button is the only authority for both visual highlight
+     and its scroll-follow behavior. Sentence and word/phrase modes are exclusive. */
+  readerSpeechInvalidateCharacterMap();
+  if(!state.runtime||!state.runtime.iframe)return;
+  try{
+    var d=state.runtime.iframe.contentDocument;if(!d)return;
+    var root=d.body||d.documentElement;if(!root)return;
+    /* Selection lock belongs to an active Speech session, not to the Word-mode
+       preference itself. Word Follow may remain enabled while idle, but the
+       reader must remain selectable until Speech actually starts. */
+    var speechActive=readerSpeechState.status!=="idle";
+    root.classList.toggle("booknote-word-follow-mode",!!readerSpeechState.wordFollowHighlight&&speechActive);
+    root.classList.toggle("booknote-sentence-follow-off",!readerSpeechState.sentenceFollowHighlight);
+    if(readerSpeechState.wordFollowHighlight){
+      readerSpeechClearNativeSelection(d);

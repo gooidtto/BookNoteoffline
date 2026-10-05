@@ -1,0 +1,117 @@
+{
+  "manifest_version": 2,
+  "name": "BookNote Offline",
+  "short_name": "BookNote Offline",
+  "description": "Local-only BookNote reader for imported documents",
+  "version": "7.18.70",
+  "incognito": "spanning",
+  "default_locale": "en",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "booknote-offline@local",
+      "strict_min_version": "115.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    },
+    "gecko_android": {}
+  },
+  "browser_action": {
+    "default_area": "navbar",
+    "default_icon": "img/icon.png",
+    "default_popup": "popup.html?isPopup=1"
+  },
+  "icons": {
+    "16": "img/icon-16.png",
+    "48": "img/icon-48.png",
+    "128": "img/icon.png"
+  },
+  "permissions": [
+    "activeTab",
+    "menus",
+    "storage",
+    "downloads",
+    "tabs",
+    "unlimitedStorage"
+  ],
+  "optional_permissions": [],
+  "web_accessible_resources": [
+    "js/page/*",
+    "img/*",
+    "css/*",
+    "models/*",
+    "js/booknote-search-worker.js"
+  ],
+  "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "file:///*"
+      ],
+      "js": [
+        "js/booknote-content.js"
+      ],
+      "css": [
+        "css/booknote.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_origin_as_fallback": true,
+      "match_about_blank": true
+    }
+  ],
+  "background": {
+    "scripts": [
+      "js/rxjs.umd.min.js",
+      "js/defaults.js",
+      "js/messaging.js",
+      "js/google-translate.js",
+      "js/tts-engines.js",
+      "js/speech.js",
+      "js/document.js",
+      "js/events.js",
+      "js/booknote-background.js"
+    ],
+    "persistent": true
+  },
+  "commands": {
+    "_execute_browser_action": {
+      "description": "Toggle popup"
+    },
+    "play": {
+      "suggested_key": {
+        "default": "Alt+O"
+      },
+      "description": "Play/Stop"
+    },
+    "pause": {
+      "suggested_key": {
+        "default": "Alt+P"
+      },
+      "description": "Play/Pause"
+    },
+    "stop": {
+      "description": "Stop"
+    },
+    "forward": {
+      "suggested_key": {
+        "default": "Alt+Period"
+      },
+      "description": "Forward"
+    },
+    "rewind": {
+      "suggested_key": {
+        "default": "Alt+Comma"
+      },
+      "description": "Rewind"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
+}

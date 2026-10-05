@@ -1,0 +1,17 @@
+<!doctype html><meta charset=utf-8><style>
+body{font:18px/1.9 sans-serif}.booknote-book-content p{margin:0 0 1em;text-indent:2em;line-height:1.9}.booknote-book-content h1{font-size:1.34em;text-align:center;font-weight:600;line-height:1.45;margin:1.55em 0 .9em}.booknote-book-content h2{font-size:1.10em;text-align:left;font-weight:600;line-height:1.55;margin:1.15em 0 .55em}
+.reader-format-office .booknote-book-content h1,.reader-format-office .booknote-book-content h2,.reader-format-office .booknote-book-content h3,.reader-format-office .booknote-book-content h4,.reader-format-office .booknote-book-content h5,.reader-format-office .booknote-book-content h6{font-size:1em!important;text-align:left!important;margin:.9em 0 .45em!important;text-indent:0!important;margin-left:0!important;margin-right:0!important;padding-left:0!important}
+.reader-format-office .booknote-book-content .booknote-document-title{font-size:1.35em!important;text-align:center!important;margin:1.2em 0 .8em!important;text-indent:0!important;padding:0!important}
+.reader-format-txt .booknote-book-content h1,.reader-format-txt .booknote-book-content h2,.reader-format-txt .booknote-book-content h3,.reader-format-txt .booknote-book-content h4,.reader-format-txt .booknote-book-content h5,.reader-format-txt .booknote-book-content h6{font-size:1em!important;text-align:left!important;margin:.9em 0 .45em!important;text-indent:0!important}
+.reader-format-txt .booknote-book-content .booknote-document-title{font-size:1.35em!important;text-align:center!important}
+</style>
+<div id=office class="reader-format-office"><div class=booknote-book-content>
+<div class=booknote-document-title>西游记</div><h1>回悟彻菩提真妙理断魔归本合元神</h1><p>话表美猴王得了姓名，怡然踊跃。</p>
+</div></div>
+<div id=txt class="reader-format-txt"><div class=booknote-book-content>
+<h1 class=booknote-document-title>西游记</h1><h1>回悟彻菩提真妙理断魔归本合元神</h1><p>话表美猴王得了姓名，怡然踊跃。</p>
+</div></div>
+<script>
+function row(root){let a=[...root.querySelectorAll('h1,h2,p,.booknote-document-title')];return a.map(e=>{let c=getComputedStyle(e);return {tag:e.tagName,cls:e.className,text:e.textContent,indent:c.textIndent,ml:c.marginLeft,pad:c.paddingLeft,align:c.textAlign,size:c.fontSize,line:c.lineHeight}})}
+document.body.dataset.gate=JSON.stringify({office:row(document.querySelector('#office')),txt:row(document.querySelector('#txt'))});
+</script>

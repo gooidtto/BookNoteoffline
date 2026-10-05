@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><body><div id="viewport" style="width:900px;height:700px"></div><div id="content" style="width:900px;height:700px"></div><div id="toc"></div><script>
+window.BookNoteLocator={reflow:o=>o};
+</script><script src="reader/readest-runtime.js"></script><script>
+(async()=>{
+ const rt=new BookNoteReadestRuntime.ReadestRuntime({viewport:document.getElementById('viewport'),content:document.getElementById('content'),toc:document.getElementById('toc')});
+ rt.setDisplayMode('scroll');
+ const chapters=[
+  {index:0,label:'北凉王府 2025年3月19日',headingLevel:1,isNavigation:true,textStart:0,textEnd:30,text:'北凉王府 2025年3月19日\n游行归来，正文。',html:'<h1>北凉王府 2025年3月19日</h1><p>游行归来，正文。</p>'},
+  {index:1,label:'问题1：游行归来，看时辰也约莫进城了，你不出去看看？',headingLevel:2,isNavigation:true,textStart:30,textEnd:80,text:'问题1：游行归来，看时辰也约莫进城了，你不出去看看？\n回复正文。',html:'<h2>问题1：游行归来，看时辰也约莫进城了，你不出去看看？</h2><p>回复正文。</p>'},
+  {index:2,label:'回复：',headingLevel:3,isNavigation:true,textStart:80,textEnd:110,text:'回复：\n回答。',html:'<h3>回复：</h3><p>回答。</p>'}
+ ];
+ await rt.openContent({text:chapters.map(x=>x.text).join(''),html:'',chapters}, {documentTitle:'雪中悍刀行',documentLanguage:'zh-CN'});
+ document.body.setAttribute('data-sections',String(rt.book.sections.length));
+ document.body.setAttribute('data-toc',String(rt.book.toc.length));
+ document.body.setAttribute('data-h1',String(rt.iframe.contentDocument.querySelectorAll('h1').length));
+ document.body.setAttribute('data-p',String(rt.iframe.contentDocument.querySelectorAll('p').length));
+ document.body.setAttribute('data-heading-text',rt.iframe.contentDocument.querySelector('h1')?.textContent||'');
+ document.body.setAttribute('data-font',getComputedStyle(rt.iframe.contentDocument.querySelector('p')).lineHeight);
+ window.status='READY';
+})();
+</script>
