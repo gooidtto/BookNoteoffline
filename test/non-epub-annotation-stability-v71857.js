@@ -9,4 +9,4 @@ assert(reader.includes('domRangeToCanonical(currentIndex,range,{annotation:true}
 assert(reader.includes('canonicalToDom(idx,start-base,end-base,query,{annotation:true})'), 'restore must use annotation mapping');
 assert(reader.includes('version:3,type:\'reflow\''), 'new reflow position version missing');
 assert(reader.includes('sourceAnchor:{chapterIndex:'), 'source anchor persistence missing');
-console.log('v7.18.57 annotation stability static gates: PASS');
+console.log('reflow annotation stability static gates: PASS');
