@@ -1,5 +1,6 @@
 /* v7.18.78 — reflow annotation contract stress test. */
 const fs=require('fs'),path=require('path');
+const annotations=fs.readFileSync(path.join(__dirname,'..','js','booknote-annotations.js'),'utf8');
 const reader=fs.readFileSync(path.join(__dirname,'..','reader','reader.js'),'utf8');
 const runtime=fs.readFileSync(path.join(__dirname,'..','reader','readest-runtime.js'),'utf8');
 function assert(c,m){if(!c)throw new Error(m)}
@@ -10,10 +11,14 @@ const chapters=makeChapters(97);let cases=0;
 for(let i=0;i<20000;i++){const idx=i%chapters.length,c=chapters[idx],a=(i*37)%c.text.length,b=a+((i*53)%Math.max(1,c.text.length-a));roundTrip(chapters,idx,a,b);cases++}
 const stale=makeChapters(3),saved=roundTrip(stale,2,3,8);stale[0].text+='新增内容';stale[1].text+='新增内容';
 assert(stale[saved.sourceAnchor.chapterIndex].text.slice(saved.sourceAnchor.localStart,saved.sourceAnchor.localEnd)===saved.sourceAnchor.exact,'stale global offsets must not control restore');
+assert(annotations.includes('a.position=a.position&&typeof a.position===\"object\"?a.position:null'),'annotation DB must persist position');
+assert(annotations.includes('a.positionVersion=Number.isFinite(Number(a.positionVersion))?Number(a.positionVersion):null'),'annotation DB must persist positionVersion');
 assert(reader.includes('positionVersion:4'),'writes must persist v4');
 assert(!reader.includes('positionVersion:3'),'no active reflow annotation writer may remain on v3');
 assert(reader.includes('bookmarkPositionSource=s||{chapterIndex:idx,start:start,end:end,text:\'\',rawText:\'\'}'),'selection-free bookmarks must persist a position');
 assert(reader.includes("position:buildIndependentPosition(s),positionVersion:4"),'all reflow write paths must use v4');
+assert(reader.includes('reflowFormat='),'reflow positions must carry source format');
+assert(reader.includes('currentFormat='),'reflow restore must reject cross-format positions');
 assert(reader.includes("p&&p.type==='reflow'&&p.sourceAnchor"),'section membership must use sourceAnchor');
 assert(reader.includes("mapped.confidence!=='source-anchor-exact'&&mapped.confidence!=='txt-source-annotated-exact'&&mapped.confidence!=='normalized-exact'"),'restore must reject heuristic locator confidence');
 assert(runtime.includes("confidence:'source-anchor-exact'"),'runtime must expose deterministic source-anchor mapping');
