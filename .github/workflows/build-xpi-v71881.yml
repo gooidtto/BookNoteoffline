@@ -1,0 +1,24 @@
+name: Build XPI v7.18.81
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript
+        run: |
+          node --check reader/readest-runtime.js
+          node --check reader/reader.js
+          node --check js/txt-heading-rules.js
+          node --check js/booknote-annotations.js
+      - name: Build XPI
+        run: |
+          rm -f BookNote-v7.18.81-fixed.xpi
+          zip -qr BookNote-v7.18.81-fixed.xpi . -x ".git/*" ".github/*" "*.xpi"
+          unzip -t BookNote-v7.18.81-fixed.xpi
+          sha256sum BookNote-v7.18.81-fixed.xpi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BookNote-v7.18.81-fixed
+          path: BookNote-v7.18.81-fixed.xpi
