@@ -1,6 +1,8 @@
 name: Build XPI v7.18.81
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - fix/reader-blank-body-v71881
 jobs:
   build:
     runs-on: ubuntu-latest
