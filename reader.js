@@ -504,7 +504,7 @@ function resolveReaderPosition(a){
  if(state.runtime.currentIndex!==idx)return null;
  if(state.runtime.invalidatePositionMap)state.runtime.invalidatePositionMap(state.runtime.iframe.contentDocument);
  var mapped=state.runtime.canonicalToDom(idx,start-base,end-base,query);if(!mapped||!mapped.start)return null;
- if(mapped.confidence!=='normalized-exact'&&mapped.confidence!=='quote-ordinal'&&mapped.confidence!=='quote-context')return null;
+ if(mapped.confidence!=='normalized-exact'&&mapped.confidence!=='quote-ordinal'&&mapped.confidence!=='quote-context'&&mapped.confidence!=='source-anchor-exact'&&mapped.confidence!=='txt-source-annotated-exact'&&mapped.confidence!=='unique-quote-exact')return null;
  var doc=state.runtime.iframe.contentDocument;if(!doc)return null;var r=doc.createRange();try{r.setStart(mapped.start.node,mapped.start.offset);r.setEnd((mapped.end&&mapped.end.node)||mapped.start.node,(mapped.end&&mapped.end.offset)!=null?mapped.end.offset:mapped.start.offset)}catch(_){return null}
  if(query&&strictReaderText(r.toString())!==strictReaderText(query))return null;
  return {doc:doc,mapped:mapped,range:r,index:idx,start:absoluteStart,end:Number.isFinite(absoluteEnd)?absoluteEnd:absoluteStart};
