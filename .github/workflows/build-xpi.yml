@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - "build/xpi-v7.18.73"
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build-xpi:
