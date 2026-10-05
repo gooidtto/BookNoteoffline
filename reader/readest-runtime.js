@@ -377,29 +377,22 @@ class ReadestRuntime extends EventTarget{
       return Number.isFinite(a)&&Number.isFinite(b)&&b>a;
     });
     if(existing.length)return existing;
+    /* TXT v7.18.56 contract: source projection is authoritative. Office DOM
+       blocks are only mapped onto that source space; no NFKC/quote/ratio guess. */
     var blocks=Array.prototype.slice.call(root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,blockquote,li,pre,dt,dd'));
     if(!blocks.length)blocks=Array.prototype.slice.call(root.children||[]);
-    function fold(v){var x=String(v||'').replace(/\u00a0/g,' ').replace(/\r\n|\r/g,'\n').replace(/\s+/g,' ').trim();try{x=x.normalize('NFKC')}catch(_){}return x;}
-    var folded=fold(ct),map=[],fi=0,i,j,ch,nx,cursor=0;
-    for(i=0;i<ct.length&&fi<folded.length;i++){
-      ch=ct.charAt(i);
-      if(/\s/.test(ch)){
-        while(i+1<ct.length&&/\s/.test(ct.charAt(i+1)))i++;
-        if(fi<folded.length&&folded.charAt(fi)===' ')map[fi++]=i;
-        continue;
-      }
-      nx=ch;try{nx=nx.normalize('NFKC')}catch(_){}
-      for(j=0;j<nx.length&&fi<folded.length;j++)map[fi++]=i;
-    }
+    var sourceProj=readerProjectText(ct),cursor=0;
     blocks.forEach(function(el){
-      var needle=fold(el.textContent||'');if(!needle)return;
-      var at=folded.indexOf(needle,cursor);if(at<0)return;
-      var endFold=at+needle.length-1,start=map[at],end=endFold<map.length?map[endFold]+1:ct.length;
-      if(start==null||end<=start)return;
+      var raw=String(el.textContent||''),needle=readerProjectText(raw).text.trim();
+      if(!needle)return;
+      var at=sourceProj.text.indexOf(needle,cursor);if(at<0)return;
+      var start=at<sourceProj.starts.length?sourceProj.starts[at]:null;
+      var last=at+needle.length-1,end=last<sourceProj.ends.length?sourceProj.ends[last]:null;
+      if(start==null||end==null||end<=start)return;
       el.setAttribute('data-odt-source-start',String(start));
       el.setAttribute('data-odt-source-end',String(end));
-      el.setAttribute('data-odt-source-version','1');
-      cursor=endFold+1;
+      el.setAttribute('data-odt-source-version','2');
+      cursor=last+1;
     });
     return Array.prototype.slice.call(root.querySelectorAll('[data-odt-source-start][data-odt-source-end]'));
   }
@@ -451,29 +444,21 @@ class ReadestRuntime extends EventTarget{
       return Number.isFinite(a)&&Number.isFinite(b)&&b>a;
     });
     if(existing.length)return existing;
+    /* TXT v7.18.56 contract, independently namespaced for DOCX. */
     var blocks=Array.prototype.slice.call(root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,blockquote,li,pre,dt,dd'));
     if(!blocks.length)blocks=Array.prototype.slice.call(root.children||[]);
-    function fold(v){var x=String(v||'').replace(/\u00a0/g,' ').replace(/\r\n|\r/g,'\n').replace(/\s+/g,' ').trim();try{x=x.normalize('NFKC')}catch(_){}return x;}
-    var folded=fold(ct),map=[],fi=0,i,j,ch,nx,cursor=0;
-    for(i=0;i<ct.length&&fi<folded.length;i++){
-      ch=ct.charAt(i);
-      if(/\s/.test(ch)){
-        while(i+1<ct.length&&/\s/.test(ct.charAt(i+1)))i++;
-        if(fi<folded.length&&folded.charAt(fi)===' ')map[fi++]=i;
-        continue;
-      }
-      nx=ch;try{nx=nx.normalize('NFKC')}catch(_){}
-      for(j=0;j<nx.length&&fi<folded.length;j++)map[fi++]=i;
-    }
+    var sourceProj=readerProjectText(ct),cursor=0;
     blocks.forEach(function(el){
-      var needle=fold(el.textContent||'');if(!needle)return;
-      var at=folded.indexOf(needle,cursor);if(at<0)return;
-      var endFold=at+needle.length-1,start=map[at],end=endFold<map.length?map[endFold]+1:ct.length;
-      if(start==null||end<=start)return;
+      var raw=String(el.textContent||''),needle=readerProjectText(raw).text.trim();
+      if(!needle)return;
+      var at=sourceProj.text.indexOf(needle,cursor);if(at<0)return;
+      var start=at<sourceProj.starts.length?sourceProj.starts[at]:null;
+      var last=at+needle.length-1,end=last<sourceProj.ends.length?sourceProj.ends[last]:null;
+      if(start==null||end==null||end<=start)return;
       el.setAttribute('data-docx-source-start',String(start));
       el.setAttribute('data-docx-source-end',String(end));
-      el.setAttribute('data-docx-source-version','1');
-      cursor=endFold+1;
+      el.setAttribute('data-docx-source-version','2');
+      cursor=last+1;
     });
     return Array.prototype.slice.call(root.querySelectorAll('[data-docx-source-start][data-docx-source-end]'));
   }
