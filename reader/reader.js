@@ -683,25 +683,28 @@ async function runSearch(q){
  * document-global offsets. The position record is authoritative; legacy fields
  * remain compatibility mirrors only.
  */
+function readerPositionHash(text){var x=String(text||'');var h=2166136261;for(var i=0;i<x.length;i++){h^=x.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(16);}
 function buildIndependentPosition(s){
-  if(!s)return null;
-  var ep=s.epubLocator||((s.locator&&String(s.locator.type||'')==='epub')?s.locator:null);
-  if(ep){
-    var si=Number(ep.sectionIndex!=null?ep.sectionIndex:ep.spineIndex!=null?ep.spineIndex:s.chapterIndex),st=Number(ep.start!=null?ep.start:s.start),en=Number(ep.end!=null?ep.end:st);
-    if(!Number.isFinite(si)||!Number.isFinite(st))return null;
-    var ds=ep.documentStart!=null?Number(ep.documentStart):NaN,de=ep.documentEnd!=null?Number(ep.documentEnd):NaN;
-    return {version:2,type:'epub',sectionIndex:si,sectionId:String(ep.sectionId||''),href:String(ep.href||''),start:Math.max(0,st),end:Math.max(Math.max(0,st),Number.isFinite(en)?en:st),documentStart:Number.isFinite(ds)?ds:null,documentEnd:Number.isFinite(de)?de:null,textQuote:ep.textQuote||{exact:String(s.text||''),prefix:'',suffix:''}};
-  }
-  var st2=Number(s.documentStart!=null?s.documentStart:s.start),en2=Number(s.documentEnd!=null?s.documentEnd:s.end);
-  if(!Number.isFinite(st2))return null;
-  if(!Number.isFinite(en2))en2=st2;
-  var exact=String((s.rawText!=null?s.rawText:s.text)||'');
-  var q=(s.locator&&s.locator.textQuote)||{exact:exact,prefix:'',suffix:''};
-  return {version:3,type:'reflow',documentStart:Math.max(0,st2),documentEnd:Math.max(Math.max(0,st2),en2),textQuote:q,sourceAnchor:{chapterIndex:Number(s.chapterIndex)||0,localStart:Math.max(0,(Number(s.start)||0)-Number((state.canonicalChapters[Number(s.chapterIndex)||0]||{}).textStart||0)),localEnd:Math.max(0,(Number(s.end)||0)-Number((state.canonicalChapters[Number(s.chapterIndex)||0]||{}).textStart||0)),exact:exact}};
+ if(!s)return null;
+ var ep=s.epubLocator||((s.locator&&String(s.locator.type||'')==='epub')?s.locator:null);
+ if(ep){
+   var si=Number(ep.sectionIndex!=null?ep.sectionIndex:ep.spineIndex!=null?ep.spineIndex:s.chapterIndex),st=Number(ep.start!=null?ep.start:s.start),en=Number(ep.end!=null?ep.end:st);
+   if(!Number.isFinite(si)||!Number.isFinite(st))return null;
+   var ds=ep.documentStart!=null?Number(ep.documentStart):NaN,de=ep.documentEnd!=null?Number(ep.documentEnd):NaN;
+   return {version:2,type:'epub',sectionIndex:si,sectionId:String(ep.sectionId||''),href:String(ep.href||''),start:Math.max(0,st),end:Math.max(Math.max(0,st),Number.isFinite(en)?en:st),documentStart:Number.isFinite(ds)?ds:null,documentEnd:Number.isFinite(de)?de:null,textQuote:ep.textQuote||{exact:String(s.text||''),prefix:'',suffix:''}};
+ }
+ var idx=Number(s.chapterIndex);if(!Number.isFinite(idx)||idx<0)idx=0;idx=Math.floor(idx);
+ var canon=state.canonicalChapters[idx]||state.chapters[idx]||{},base=Number(canon.textStart)||0,chapterText=String(canon.text||''),chapterEnd=Number(canon.textEnd);
+ if(!Number.isFinite(chapterEnd))chapterEnd=base+chapterText.length;
+ var absStart=Number(s.start!=null?s.start:s.documentStart),absEnd=Number(s.end!=null?s.end:s.documentEnd);
+ if(!Number.isFinite(absStart))return null;if(!Number.isFinite(absEnd))absEnd=absStart;
+ var localStart=Math.max(0,Math.min(chapterText.length,absStart-base)),localEnd=Math.max(localStart,Math.min(chapterText.length,absEnd-base));
+ var exact=chapterText.slice(localStart,localEnd);
+ var q=(s.locator&&s.locator.textQuote)||{exact:exact,prefix:chapterText.slice(Math.max(0,localStart-48),localStart),suffix:chapterText.slice(localEnd,Math.min(chapterText.length,localEnd+48))};
+ return {version:4,type:'reflow',documentStart:Math.max(0,absStart),documentEnd:Math.max(Math.max(0,absStart),absEnd),textQuote:q,sourceAnchor:{chapterIndex:idx,localStart:localStart,localEnd:localEnd,exact:exact,prefix:chapterText.slice(Math.max(0,localStart-48),localStart),suffix:chapterText.slice(localEnd,Math.min(chapterText.length,localEnd+48)),chapterTextHash:readerPositionHash(chapterText),chapterTextLength:chapterText.length},canonicalSpace:'chapter-local-v1'};
 }
 function positionFromAnnotation(a){if(!a)return null;return a.position||buildIndependentPosition(a);}
-function validateIndependentPosition(a){var p=positionFromAnnotation(a);if(!p||(p.version!==2&&p.version!==3))return false;if(p.type==='epub')return Number.isFinite(Number(p.sectionIndex))&&Number.isFinite(Number(p.start))&&Number.isFinite(Number(p.end))&&Number(p.end)>=Number(p.start);if(p.type==='reflow')return Number.isFinite(Number(p.documentStart))&&Number.isFinite(Number(p.documentEnd))&&Number(p.documentEnd)>=Number(p.documentStart);return false;}
-
+function validateIndependentPosition(a){var p=positionFromAnnotation(a);if(!p)return false;if(p.type==='epub')return p.version===2&&Number.isFinite(Number(p.sectionIndex))&&Number.isFinite(Number(p.start))&&Number.isFinite(Number(p.end))&&Number(p.end)>=Number(p.start);if(p.type==='reflow'){var x=p.sourceAnchor||{},idx=Number(x.chapterIndex),canon=state.canonicalChapters[Math.floor(idx)]||state.chapters[Math.floor(idx)]||{},ct=String(canon.text||'');if(!((p.version===4||p.version===3)&&Number.isFinite(idx)&&idx>=0&&Number.isFinite(Number(x.localStart))&&Number.isFinite(Number(x.localEnd))&&Number(x.localStart)>=0&&Number(x.localEnd)>=Number(x.localStart)))return false;if(Number(x.localEnd)>ct.length)return false;if(x.chapterTextHash&&ct&&String(x.chapterTextHash)!==readerPositionHash(ct))return false;return true;}return false;}
 function selectionOffsets(){var frame=state.runtime&&state.runtime.iframe;if(!frame)return null;try{var doc=frame.contentDocument,sel=doc.getSelection();if(!sel||!sel.rangeCount||sel.isCollapsed)return null;var range=sel.getRangeAt(0);if(!doc.body.contains(range.startContainer)||!doc.body.contains(range.endContainer))return null;var rawText=String(range.toString()||''),text=rawText.trim();if(!text)return null;/* Keep the exact DOM selection text for locator construction. Trimming before building the EPUB locator can shift occurrence/context matching when the selection starts or ends with whitespace. The user-facing annotation text remains trimmed. */if(state.runtime.isEpubMulti&&state.runtime.isEpubMulti()&&state.runtime.epubAnchorFromRange){var anchor=state.runtime.epubAnchorFromRange(range,rawText);if(anchor){try{var sr=range.getBoundingClientRect();}catch(_){}return {start:Number(anchor.start)||0,end:Number(anchor.end)||Number(anchor.start)||0,text:text,rawText:rawText,chapterIndex:Number(anchor.sectionIndex)||0,chapterLabel:(state.chapters[Number(anchor.sectionIndex)||0]||{}).label||'',progress:state.chapters.length?((Number(anchor.sectionIndex)||0)+1)/state.chapters.length:0,range:range,frame:frame,epubLocator:anchor,locator:anchor};}}/* Office/TXT/other reflow documents are rendered one canonical section per live iframe. The runtime index is authoritative after natural section scrolling; state.currentChapter can lag behind when the user crosses a section boundary. */var currentIndex=Number(state.runtime.currentIndex);if(!Number.isFinite(currentIndex))currentIndex=Number(state.currentChapter)||0;var mapped=state.runtime.domRangeToCanonical(currentIndex,range,{annotation:true});if(!mapped)return null;var base=Number((state.canonicalChapters[currentIndex]||state.chapters[currentIndex]||{}).textStart)||0;return {start:base+Number(mapped.start||0),end:base+Number(mapped.end||0),text:text,rawText:rawText,chapterIndex:currentIndex,chapterLabel:(state.chapters[currentIndex]||{}).label||'',progress:state.chapters.length?(currentIndex+1)/state.chapters.length:0,range:range,frame:frame}}catch(_){return null}}
 function positionToolbar(sel){var tb=$("selectionToolbar");if(!sel||!sel.text||!sel.range){tb.hidden=true;return}try{var r=sel.range.getBoundingClientRect(),fr=sel.frame&&sel.frame.getBoundingClientRect(),vr=$("viewport").getBoundingClientRect();fr=fr||vr;var left=fr.left-vr.left+r.left+(r.width/2)-145;var top=fr.top-vr.top+r.top-56;if(top<8)top=fr.top-vr.top+r.bottom+10;left=Math.max(8,Math.min(left,Math.max(8,vr.width-300)));top=Math.max(8,Math.min(top,Math.max(8,vr.height-46)));tb.style.left=Math.round(left)+"px";tb.style.top=Math.round(top)+"px";tb.hidden=false}catch(_){tb.hidden=true}}
 function clearSelection(){state.selected=null;var tb=$("selectionToolbar");if(tb)tb.hidden=true;closeHighlightColorPicker();closeBookmarkStarPicker();try{var frame=state.runtime&&state.runtime.iframe,doc=frame&&frame.contentDocument,sel=doc&&doc.getSelection&&doc.getSelection();if(sel&&sel.rangeCount)sel.removeAllRanges()}catch(_){} }
@@ -746,7 +749,7 @@ function openSummaryNoteEditor(existingAnnotation){
    var annotation={
      id:id,bookId:String(state.book.id),type:"note",text:String(s.text||""),note:text,color:"yellow",
      start:s.start,end:s.end,chapterIndex:s.chapterIndex,chapterLabel:s.chapterLabel,progress:s.progress,
-     position:existing&&existing.position?existing.position:buildIndependentPosition(s),positionVersion:3,
+     position:existing&&existing.position?existing.position:buildIndependentPosition(s),positionVersion:4,
      locator:(s.epubLocator||s.locator||(globalThis.BookNoteLocator?BookNoteLocator.fromRange(s.chapterIndex,Math.max(0,Number(s.start)-Number(state.chapters[s.chapterIndex].textStart||0)),Math.max(0,Number(s.end)-Number(state.chapters[s.chapterIndex].textStart||0)),s.text,{href:(state.chapters[s.chapterIndex]||{}).href,fragment:(state.chapters[s.chapterIndex]||{}).fragment,documentStart:Number(s.start)||0,documentEnd:Number(s.end)||Number(s.start)||0}):{chapterIndex:s.chapterIndex,offset:Math.max(0,Number(s.start)-Number(state.chapters[s.chapterIndex].textStart||0))})),epubLocator:s.epubLocator||((s.locator&&String(s.locator.type||'')==='epub')?s.locator:null),
      categoryType:"summary",sourceType:"selection-summary",summaryMode:"selection",source:"reader-summary",
      createdAt:existing&&existing.createdAt||now,updatedAt:now,tags:existing&&Array.isArray(existing.tags)?existing.tags:[],
@@ -890,6 +893,8 @@ function resolveReaderPosition(a){
    idx=Number(located.chapterIndex);canon=list[idx]||{};base=Number(canon.textStart)||0;start=Number(located.start);end=Number(located.end);
  }
  if(!Number.isFinite(start))return null;
+ if(sourceAnchor&&sourceAnchor.chapterTextHash&&String(sourceAnchor.chapterTextHash)!==readerPositionHash(String(canon.text||'')))return null;
+ if(sourceAnchor&&Number(sourceAnchor.localStart)!==Number(start)||sourceAnchor&&Number(sourceAnchor.localEnd)!==Number(end))return null;
  start=Math.max(base,Math.min(Number(canon.textEnd)!=null?Number(canon.textEnd):base+String(canon.text||'').length,start));
  end=Number.isFinite(end)?Math.max(start,Math.min(Number(canon.textEnd)!=null?Number(canon.textEnd):base+String(canon.text||'').length,end)):start;
  if(state.runtime.currentIndex!==idx)return null;
@@ -902,7 +907,7 @@ function resolveReaderPosition(a){
     occurrence/context or proportional DOM ratio. Those fallbacks caused records
     to jump to another identical sentence after refresh. Source anchors and the
     full normalized document map are deterministic; everything else fails closed. */
- if(mapped.confidence!=='source-anchor-exact'&&mapped.confidence!=='txt-source-annotated-exact'&&mapped.confidence!=='normalized-exact'&&mapped.confidence!=='canonical-offset'&&mapped.confidence!=='quote-ordinal'&&mapped.confidence!=='quote-context'&&mapped.confidence!=='unique-quote-exact')return null;
+ if(mapped.confidence!=='source-anchor-exact'&&mapped.confidence!=='txt-source-annotated-exact'&&mapped.confidence!=='normalized-exact')return null;
  var doc=state.runtime.iframe.contentDocument;if(!doc)return null;var r=doc.createRange();try{r.setStart(mapped.start.node,mapped.start.offset);r.setEnd((mapped.end&&mapped.end.node)||mapped.start.node,(mapped.end&&mapped.end.offset)!=null?mapped.end.offset:mapped.start.offset)}catch(_){return null}
  if(query&&strictReaderText(r.toString())!==strictReaderText(query)){
    if(state.runtime.isEpubMulti&&state.runtime.isEpubMulti())return null;
@@ -1196,13 +1201,11 @@ function epubAnnotationSectionIndex(a){
 }
 function annotationBelongsToSection(a,idx){
   if(!a)return false;
-  /* Position is authoritative for section membership. EPUB uses its spine
-     section. Reflow documents (including ODT/DOCX) use document-global
-     offsets, so derive the live section from documentStart rather than
-     trusting legacy/stale chapterIndex metadata. */
   var p=positionFromAnnotation(a);
-  if(p&&p.type==="epub"&&Number.isFinite(Number(p.sectionIndex)))return Number(p.sectionIndex)===Number(idx);
-  if(p&&p.type==="reflow"&&Number.isFinite(Number(p.documentStart))){
+  if(p&&p.type==='epub'&&Number.isFinite(Number(p.sectionIndex)))return Number(p.sectionIndex)===Number(idx);
+  if(p&&p.type==='reflow'&&p.sourceAnchor&&Number.isFinite(Number(p.sourceAnchor.chapterIndex)))return Number(p.sourceAnchor.chapterIndex)===Number(idx);
+  /* Compatibility-only path for legacy records that predate chapter-local anchors. */
+  if(p&&p.type==='reflow'&&Number.isFinite(Number(p.documentStart))){
     var list=state.canonicalChapters.length?state.canonicalChapters:state.chapters;
     if(globalThis.BookNoteLocator&&list&&list.length){
       var resolved=BookNoteLocator.fromAbsolute(list,Number(p.documentStart),Number.isFinite(Number(p.documentEnd))?Number(p.documentEnd):Number(p.documentStart),String((p.textQuote&&p.textQuote.exact)||a.text||''),{textQuote:p.textQuote});
@@ -1224,7 +1227,7 @@ async function renderChapterBookmarks(doc,idx){
   }
   return out;
 }
-async function refreshAnnotations(){try{state.annotations=await BookNoteReadestBridge.listAnnotations(state.book.id);var repairs=[];state.annotations=state.annotations.map(function(a){var next=a;if(!validateIndependentPosition(a)){var p=buildIndependentPosition(a);if(p){next=Object.assign({},a,{position:p,positionVersion:Number(p.version)||3});repairs.push(next)}}if(isContentAnnotation(next)){var k=contentAnnotationStyleKey(next),m=getContentAnnotationStyle(k);next=Object.assign({},next,{contentAnnotationStyle:k,contentAnnotationColor:m.color,contentAnnotationLine:m.line,color:m.color})}return next});if(repairs.length){await Promise.all(repairs.map(function(a){return BookNoteReadestBridge.saveAnnotation(a).catch(function(e){console.warn('[Position Repair]',e)})}))}renderSide()}catch(e){console.warn(e)}}
+async function refreshAnnotations(){try{state.annotations=await BookNoteReadestBridge.listAnnotations(state.book.id);var repairs=[];state.annotations=state.annotations.map(function(a){var next=a,p=positionFromAnnotation(a);if(!validateIndependentPosition(a)||(p&&p.type==='reflow'&&Number(p.version)!==4)){var rebuilt=buildIndependentPosition(a);if(rebuilt){next=Object.assign({},a,{position:rebuilt,positionVersion:Number(rebuilt.version)||4});repairs.push(next)}}if(isContentAnnotation(next)){var k=contentAnnotationStyleKey(next),m=getContentAnnotationStyle(k);next=Object.assign({},next,{contentAnnotationStyle:k,contentAnnotationColor:m.color,contentAnnotationLine:m.line,color:m.color})}return next});if(repairs.length){await Promise.all(repairs.map(function(a){return BookNoteReadestBridge.saveAnnotation(a).catch(function(e){console.warn('[Position Repair]',e)})}))}renderSide()}catch(e){console.warn(e)}}
 function bnIcon(name,cls){return '<img class="bn-reader-icon ' +(cls||'') +'" src="'+browser.runtime.getURL("img/ui/"+name+".png")+'" alt="" aria-hidden="true">'}
 async function restoreRecordVisualAfterReady(record,idx,doc){
   if(!record||!doc)return false;
