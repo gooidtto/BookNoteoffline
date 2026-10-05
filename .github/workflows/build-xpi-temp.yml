@@ -1,0 +1,23 @@
+name: Build XPI v7.18.80
+on:
+  push:
+    branches: [build/xpi-v7.18.80]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify and package
+        run: |
+          test -f manifest.json
+          node --check reader/readest-runtime.js
+          node --check reader/reader.js
+          node --check js/booknote-annotations.js
+          mkdir -p dist
+          zip -qr dist/BookNote-v7.18.80-fixed.xpi . -x '.git/*' '.github/*' 'dist/*'
+          unzip -t dist/BookNote-v7.18.80-fixed.xpi
+          sha256sum dist/BookNote-v7.18.80-fixed.xpi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BookNote-v7.18.80-fixed
+          path: dist/BookNote-v7.18.80-fixed.xpi
