@@ -1,0 +1,37 @@
+name: Build XPI
+
+on:
+  push:
+    branches:
+      - "build/xpi-v7.18.70"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-xpi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact repository revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package tracked repository files as XPI
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f manifest.json
+          version="$(node -p "require('./manifest.json').version")"
+          mkdir -p dist stage
+          git archive --format=tar HEAD | tar -xf - -C stage
+          test -f stage/manifest.json
+          (cd stage && zip -qr "../dist/BookNote-v${version}-repo.xpi" .)
+          unzip -t "dist/BookNote-v${version}-repo.xpi"
+
+      - name: Upload XPI
+        uses: actions/upload-artifact@v4
+        with:
+          name: BookNote-XPI
+          path: dist/*.xpi
+          if-no-files-found: error
