@@ -693,12 +693,21 @@ function buildIndependentPosition(s){
    var ds=ep.documentStart!=null?Number(ep.documentStart):NaN,de=ep.documentEnd!=null?Number(ep.documentEnd):NaN;
    return {version:2,type:'epub',sectionIndex:si,sectionId:String(ep.sectionId||''),href:String(ep.href||''),start:Math.max(0,st),end:Math.max(Math.max(0,st),Number.isFinite(en)?en:st),documentStart:Number.isFinite(ds)?ds:null,documentEnd:Number.isFinite(de)?de:null,textQuote:ep.textQuote||{exact:String(s.text||''),prefix:'',suffix:''}};
  }
- var idx=Number(s.chapterIndex);if(!Number.isFinite(idx)||idx<0)idx=0;idx=Math.floor(idx);
+ var existing=s.position&&s.position.type==='reflow'?s.position:null,existingAnchor=existing&&existing.sourceAnchor;
+ var idx=Number(existingAnchor&&existingAnchor.chapterIndex!=null?existingAnchor.chapterIndex:s.chapterIndex);
+ if(!Number.isFinite(idx)||idx<0)idx=0;idx=Math.floor(idx);
  var canon=state.canonicalChapters[idx]||state.chapters[idx]||{},base=Number(canon.textStart)||0,chapterText=String(canon.text||''),chapterEnd=Number(canon.textEnd);
  if(!Number.isFinite(chapterEnd))chapterEnd=base+chapterText.length;
- var absStart=Number(s.start!=null?s.start:s.documentStart),absEnd=Number(s.end!=null?s.end:s.documentEnd);
- if(!Number.isFinite(absStart))return null;if(!Number.isFinite(absEnd))absEnd=absStart;
- var localStart=Math.max(0,Math.min(chapterText.length,absStart-base)),localEnd=Math.max(localStart,Math.min(chapterText.length,absEnd-base));
+ var absStart,absEnd,localStart,localEnd;
+ if(existingAnchor&&Number.isFinite(Number(existingAnchor.localStart))&&Number.isFinite(Number(existingAnchor.localEnd))){
+   localStart=Math.max(0,Math.min(chapterText.length,Number(existingAnchor.localStart)));localEnd=Math.max(localStart,Math.min(chapterText.length,Number(existingAnchor.localEnd)));absStart=base+localStart;absEnd=base+localEnd;
+ }else{
+   absStart=Number(s.start!=null?s.start:s.documentStart);absEnd=Number(s.end!=null?s.end:s.documentEnd);
+   if(!Number.isFinite(absStart)&&existing&&Number.isFinite(Number(existing.documentStart)))absStart=Number(existing.documentStart);
+   if(!Number.isFinite(absEnd)&&existing&&Number.isFinite(Number(existing.documentEnd)))absEnd=Number(existing.documentEnd);
+   if(!Number.isFinite(absStart))return null;if(!Number.isFinite(absEnd))absEnd=absStart;
+   localStart=Math.max(0,Math.min(chapterText.length,absStart-base));localEnd=Math.max(localStart,Math.min(chapterText.length,absEnd-base));
+ }
  var exact=chapterText.slice(localStart,localEnd);
  var q=(s.locator&&s.locator.textQuote)||{exact:exact,prefix:chapterText.slice(Math.max(0,localStart-48),localStart),suffix:chapterText.slice(localEnd,Math.min(chapterText.length,localEnd+48))};
  return {version:4,type:'reflow',documentStart:Math.max(0,absStart),documentEnd:Math.max(Math.max(0,absStart),absEnd),textQuote:q,sourceAnchor:{chapterIndex:idx,localStart:localStart,localEnd:localEnd,exact:exact,prefix:chapterText.slice(Math.max(0,localStart-48),localStart),suffix:chapterText.slice(localEnd,Math.min(chapterText.length,localEnd+48)),chapterTextHash:readerPositionHash(chapterText),chapterTextLength:chapterText.length},canonicalSpace:'chapter-local-v1'};
