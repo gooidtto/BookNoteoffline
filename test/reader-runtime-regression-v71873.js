@@ -1,7 +1,7 @@
 /* Static regression gates for EPUB highlight restore and TXT selection UI. */
 const fs = require('fs');
 const path = require('path');
-const reader = fs.readFileSync(path.join(__dirname,'..','reader','reader.js'),'utf8');
+const reader = fs.readFileSync(path.join(__dirname,'..','reader.js'),'utf8');
 const runtime = fs.readFileSync(path.join(__dirname,'..','reader','readest-runtime.js'),'utf8');
 function assert(c,m){if(!c)throw new Error(m)}
 assert(reader.includes('var currentIndex=Number(state.runtime.currentIndex)'), 'selection must use live runtime section');
