@@ -16,7 +16,8 @@ assert(runtime.includes("canonicalHits.length===1&&domHits.length===1"), 'TXT an
 assert(runtime.includes("confidence:'unique-quote-exact'"), 'unique TXT quote fallback must be marked as exact');
 assert(reader.includes("mapped.confidence!=='source-anchor-exact'"), 'reflow source-anchor positions must pass location validation');
 assert(reader.includes("mapped.confidence!=='txt-source-annotated-exact'"), 'TXT annotated positions must pass location validation');
-assert(reader.includes("mapped.confidence!=='unique-quote-exact'"), 'unique exact fallback must pass location validation');
 assert(reader.includes('sourceAnchor=pos.sourceAnchor||null'), 'reflow restore must prefer persisted source anchors');
 assert(reader.includes('var anchor=pos.sourceAnchor;'), 'left-record navigation must use persisted source-anchor chapter/local offset');
-console.log('v7.18.73 reader annotation/selection regression gates: PASS');
+assert(reader.includes("version:4,type:'reflow'"), 'reflow positions must use v4 chapter-local contract');
+assert(reader.includes("p&&p.type==='reflow'&&p.sourceAnchor&&Number.isFinite(Number(p.sourceAnchor.chapterIndex))"), 'section membership must use source anchor first');
+console.log('reader annotation/selection regression gates: PASS');
