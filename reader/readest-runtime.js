@@ -451,10 +451,15 @@ class ReadestRuntime extends EventTarget{
       function anchorFor(node){
         var el=node&&node.nodeType===1?node:node&&node.parentElement;
         while(el&&el!==root){if(el.hasAttribute&&el.hasAttribute('data-bn-source-start')&&el.hasAttribute('data-bn-source-end'))return {el:el,s:Number(el.getAttribute('data-bn-source-start')),e:Number(el.getAttribute('data-bn-source-end'))};el=el.parentElement;}
+        /* Full-document selections can use the source root itself as a boundary
+           container. The root has no source attributes, but its offsets are
+           deterministic and must not be rejected. */
+        if(node===root)return {el:root,s:0,e:ct.length,rootBoundary:true};
         return null;
       }
       function sourcePoint(item,node,off){
         if(!item||!Number.isFinite(item.s)||!Number.isFinite(item.e))return null;
+        if(item.rootBoundary&&node===root)return Number(off)<=0?0:ct.length;
         var pre=doc.createRange();try{pre.selectNodeContents(item.el);pre.setEnd(node,off);}catch(_){return null;}
         var prefix=String(pre.toString()||''),whole=String(item.el.textContent||''),src=ct.slice(item.s,item.e),sp=readerProjectText(src),wp=readerProjectText(whole),pp=readerProjectText(prefix);
         if(sp.text!==wp.text)return null;
