@@ -917,7 +917,7 @@ function resolveReaderPosition(a){
     occurrence/context or proportional DOM ratio. Those fallbacks caused records
     to jump to another identical sentence after refresh. Source anchors and the
     full normalized document map are deterministic; everything else fails closed. */
- if(mapped.confidence!=='source-anchor-exact'&&mapped.confidence!=='txt-source-annotated-exact'&&mapped.confidence!=='normalized-exact')return null;
+ if(mapped.confidence!=='source-anchor-exact'&&mapped.confidence!=='txt-source-annotated-exact'&&mapped.confidence!=='odt-source-anchor-exact'&&mapped.confidence!=='docx-source-anchor-exact'&&mapped.confidence!=='normalized-exact')return null;
  var doc=state.runtime.iframe.contentDocument;if(!doc)return null;var r=doc.createRange();try{r.setStart(mapped.start.node,mapped.start.offset);r.setEnd((mapped.end&&mapped.end.node)||mapped.start.node,(mapped.end&&mapped.end.offset)!=null?mapped.end.offset:mapped.start.offset)}catch(_){return null}
  if(query&&strictReaderText(r.toString())!==strictReaderText(query)){
    if(state.runtime.isEpubMulti&&state.runtime.isEpubMulti())return null;
