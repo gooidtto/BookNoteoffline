@@ -3,7 +3,7 @@
   "name": "BookNote Offline",
   "short_name": "BookNote Offline",
   "description": "Local-only BookNote reader for imported documents",
-  "version": "7.18.70",
+  "version": "7.18.73",
   "incognito": "spanning",
   "default_locale": "en",
   "browser_specific_settings": {
