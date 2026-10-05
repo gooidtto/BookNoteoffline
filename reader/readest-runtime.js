@@ -476,12 +476,19 @@ class ReadestRuntime extends EventTarget{
       }
     }
     var info=this.positionNodes(doc),cp=readerProjectText(ct),pre=doc.createRange();pre.selectNodeContents(doc.getElementById('source')||doc.body);try{pre.setEnd(range.startContainer,range.startOffset);}catch(_){return null}var rawStart=pre.toString().length,rawEnd=rawStart+String(range.toString()||'').length;if(cp.text===info.proj.text){var ni=rawStart>=info.raw.length?cp.starts.length:readerNormIndexAt(info.proj,rawStart),nj=rawEnd<=rawStart?ni:readerNormIndexAt(info.proj,Math.max(0,rawEnd-1));var cs=ni<cp.starts.length&&cp.starts[ni]!=null?cp.starts[ni]:ct.length,ce=rawEnd<=rawStart?cs:(nj<cp.ends.length?cp.ends[nj]:ct.length);return {start:Math.max(0,Math.min(ct.length,cs)),end:Math.max(Math.max(0,Math.min(ct.length,cs)),Math.min(ct.length,ce)),text:String(range.toString()||''),confidence:'normalized-exact'};}
-    /* Annotation mode is deliberately fail-closed. Once source-anchor mapping and
-       full normalized projection fail, never infer identity from repeated quotes,
-       context scores, or proportional offsets. Those are acceptable for legacy
-       non-persistent features only, never for saved marks. */
-    if(annotationMode)return null;
-    var selected=String(range.toString()||''),nq=readerProjectText(selected).text;if(nq){var pos=readerFindAll(info.proj.text,nq,100000),target=info.proj.text.slice(0,readerNormIndexAt(info.proj,rawStart)),ord=readerFindAll(target,nq,100000).length,canonPos=readerFindAll(cp.text,nq,100000);if(canonPos.length){var p=canonPos[Math.min(ord,canonPos.length-1)],cs=cp.starts[p]||0,ce=cp.ends[Math.min(cp.ends.length-1,p+nq.length-1)]||cs;return {start:cs,end:Math.max(cs,ce),text:selected,confidence:'quote-ordinal'};}}var ratio=info.raw.length?rawStart/info.raw.length:0,cs=Math.round(ct.length*Math.max(0,Math.min(1,ratio)));return {start:cs,end:Math.min(ct.length,cs+selected.length),text:selected};
+    /* Annotation mode remains fail-closed for ambiguous/repeated text, but a
+       projected quote with exactly one occurrence in both canonical text and
+       live DOM is deterministic enough to persist. This keeps the selection
+       toolbar usable when only formatting whitespace differs. */
+    var selected=String(range.toString()||''),nq=readerProjectText(selected).text;
+    if(annotationMode&&nq){
+      var canonicalHits=readerFindAll(cp.text,nq,100000),domHits=readerFindAll(info.proj.text,nq,100000);
+      if(canonicalHits.length===1&&domHits.length===1){
+        var onlyStart=cp.starts[canonicalHits[0]]||0,onlyEnd=cp.ends[Math.min(cp.ends.length-1,canonicalHits[0]+nq.length-1)]||onlyStart;
+        return {start:Math.max(0,Math.min(ct.length,onlyStart)),end:Math.max(onlyStart,Math.min(ct.length,onlyEnd)),text:selected,confidence:'unique-quote-exact'};
+      }
+      return null;
+    }if(nq){var pos=readerFindAll(info.proj.text,nq,100000),target=info.proj.text.slice(0,readerNormIndexAt(info.proj,rawStart)),ord=readerFindAll(target,nq,100000).length,canonPos=readerFindAll(cp.text,nq,100000);if(canonPos.length){var p=canonPos[Math.min(ord,canonPos.length-1)],cs=cp.starts[p]||0,ce=cp.ends[Math.min(cp.ends.length-1,p+nq.length-1)]||cs;return {start:cs,end:Math.max(cs,ce),text:selected,confidence:'quote-ordinal'};}}var ratio=info.raw.length?rawStart/info.raw.length:0,cs=Math.round(ct.length*Math.max(0,Math.min(1,ratio)));return {start:cs,end:Math.min(ct.length,cs+selected.length),text:selected};
   }
   canonicalLocalToDomOffset(index,offset,quote){var r=this.canonicalToDom(index,offset,offset,quote);if(!r||!r.start)return 0;var info=this.positionNodes(this.iframe.contentDocument),base=0;for(var i=0;i<info.nodes.length;i++){if(info.nodes[i].n===r.start.node)return info.nodes[i].s+r.start.offset;}return 0;}
   renderTOC(){var self=this;this.toc.innerHTML=this.book.toc.map(function(x){return '<button type="button" data-i="'+Number(x.index||0)+'">'+esc(x.label)+'</button>'}).join('');this.toc.querySelectorAll('[data-i]').forEach(function(b){b.onclick=function(){self.show(Number(b.dataset.i),0)}})}
