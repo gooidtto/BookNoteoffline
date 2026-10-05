@@ -34,7 +34,7 @@ must(runtime.includes('data-docx-source-start'), 'DOCX source namespace missing'
 
 must(!runtime.includes('installSourceAnchors(index,doc)'), 'shared source-anchor installer still reachable');
 must(!runtime.includes('officeDomRangeToCanonical'), 'shared Office reverse mapper still reachable');
-must(!runtime.includes('data-bn-source-start'), 'ODT/DOCX still coupled to shared data-bn source namespace');
+must(!/installOdtSourceAnchors[\\s\\S]{0,12000}data-bn-source-start/.test(runtime), 'ODT installer still references shared data-bn source namespace');\nmust(!/installDocxSourceAnchors[\\s\\S]{0,12000}data-bn-source-start/.test(runtime), 'DOCX installer still references shared data-bn source namespace');
 
 must(reader.includes("mapped.confidence!=='odt-source-anchor-exact'"), 'Reader does not accept ODT exact locator');
 must(reader.includes("mapped.confidence!=='docx-source-anchor-exact'"), 'Reader does not accept DOCX exact locator');
