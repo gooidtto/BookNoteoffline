@@ -17,4 +17,6 @@ assert(runtime.includes("confidence:'unique-quote-exact'"), 'unique TXT quote fa
 assert(reader.includes("mapped.confidence!=='source-anchor-exact'"), 'reflow source-anchor positions must pass location validation');
 assert(reader.includes("mapped.confidence!=='txt-source-annotated-exact'"), 'TXT annotated positions must pass location validation');
 assert(reader.includes("mapped.confidence!=='unique-quote-exact'"), 'unique exact fallback must pass location validation');
+assert(reader.includes('sourceAnchor=pos.sourceAnchor||null'), 'reflow restore must prefer persisted source anchors');
+assert(reader.includes('var anchor=pos.sourceAnchor;'), 'left-record navigation must use persisted source-anchor chapter/local offset');
 console.log('v7.18.73 reader annotation/selection regression gates: PASS');
