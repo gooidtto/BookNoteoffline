@@ -434,7 +434,7 @@ class ReadestRuntime extends EventTarget{
   canonicalToDom(index,start,end,quote,options){
     options=options||{};
     var annotationMode=options.annotation===true;
-    var doc=this.iframe&&this.iframe.contentDocument;if(!doc)return null;options=options||{};var txt=this.txtCanonicalToDom(index,start,end,quote);if(txt)return txt;var anchored=this.sourceAnchoredToDom(index,start,end);if(anchored)return anchored;var info=this.positionNodes(doc),canon=this.canonicalSection(index),ct=String(canon.text||''),cp=readerProjectText(ct),s=Math.max(0,Math.min(Number(start)||0,ct.length)),e=Math.max(s,Math.min(Number(end)!=null?Number(end):s,ct.length));
+    var doc=this.iframe&&this.iframe.contentDocument;if(!doc)return null;options=options||{};var kind=this.formatKind();if(kind==="txt"){var txt=this.txtCanonicalToDom(index,start,end,quote);if(txt)return txt;return null;}if(kind==="odt")return this.odtCanonicalToDom(index,start,end,quote,options);if(kind==="docx")return this.docxCanonicalToDom(index,start,end,quote,options);if(kind==="epub")return null;var anchored=this.sourceAnchoredToDom(index,start,end);if(anchored)return anchored;var info=this.positionNodes(doc),canon=this.canonicalSection(index),ct=String(canon.text||''),cp=readerProjectText(ct),s=Math.max(0,Math.min(Number(start)||0,ct.length)),e=Math.max(s,Math.min(Number(end)!=null?Number(end):s,ct.length));
     if(cp.text===info.proj.text){var ai=s>=ct.length?info.raw.length:info.proj.starts[readerNormIndexAt(cp,s)],b=e>=ct.length?info.raw.length:(e>0?info.proj.ends[readerNormIndexAt(cp,Math.max(0,e-1))]:0);return {start:this.domPointAt(info,ai!=null?ai:s),end:this.domPointAt(info,b!=null?b:e),confidence:'normalized-exact'};}
     if(annotationMode)return null;
     var q=String(quote||ct.slice(s,e)||'').trim(),nq=readerProjectText(q).text;
@@ -442,9 +442,52 @@ class ReadestRuntime extends EventTarget{
     var anchorStart=Math.max(0,s-48),anchorEnd=Math.min(ct.length,e+48),anchor=readerProjectText(ct.slice(anchorStart,anchorEnd)).text,ai=info.proj.text.indexOf(anchor);if(ai>=0){var targetNorm=readerProjectText(ct.slice(anchorStart,s)).text.length,rs=info.proj.starts[ai+targetNorm]||0,re=readerNormIndexAt(cp,e)>=0?info.proj.starts[Math.min(info.proj.starts.length-1,ai+readerProjectText(ct.slice(anchorStart,e)).text.length)]:rs;return {start:this.domPointAt(info,rs),end:this.domPointAt(info,re),confidence:'anchor'};}
     if(options.strict)return null;var ratio=ct.length?Math.max(0,Math.min(1,s/ct.length)):0,dr=Math.round(info.raw.length*ratio),er=Math.max(dr,Math.min(info.raw.length,dr+Math.max(0,e-s)));return {start:this.domPointAt(info,dr),end:this.domPointAt(info,er),confidence:'ratio-fallback'};
   }
+  formatKind(){
+    var f=String(this.book&&this.book.meta&&(this.book.meta.documentFormat||this.book.meta.documentFileName)||'').toLowerCase();
+    if(f==='text/plain'||/\\.txt$/i.test(f))return 'txt';
+    if(f==='odt'||f==='application/vnd.oasis.opendocument.text'||/\\.odt$/i.test(f))return 'odt';
+    if(f==='docx'||f==='application/vnd.openxmlformats-officedocument.wordprocessingml.document'||/\\.docx$/i.test(f))return 'docx';
+    if(f==='epub'||f==='application/epub+zip'||/\\.epub$/i.test(f))return 'epub';
+    return f;
+  }
+  txtDomRangeToCanonical(index,range,options){
+    options=options||{};var doc=this.iframe&&this.iframe.contentDocument;if(!doc||!range)return null;
+    if(!doc.body.classList.contains('reader-format-txt'))return null;
+    var ct=String(this.canonicalSection(index).text||''),root=doc.getElementById('source')||doc.body,els=Array.prototype.slice.call(root.querySelectorAll('[data-txt-source-start][data-txt-source-end]'));
+    if(!els.length)return null;
+    function itemFor(node){var el=node&&node.nodeType===1?node:node&&node.parentElement;while(el&&el!==root){if(el.hasAttribute&&el.hasAttribute('data-txt-source-start')&&el.hasAttribute('data-txt-source-end'))return {el:el,s:Number(el.getAttribute('data-txt-source-start')),e:Number(el.getAttribute('data-txt-source-end'))};el=el.parentElement;}if(node===root)return {el:root,s:0,e:ct.length,rootBoundary:true};return null;}
+    function point(item,node,off){
+      if(item.rootBoundary)return Number(off)<=0?0:ct.length;
+      var src=ct.slice(item.s,item.e),walker=doc.createTreeWalker(item.el,NodeFilter.SHOW_TEXT),nodes=[],n,raw='';
+      while((n=walker.nextNode())){var p=n.parentElement;if(p&&/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|INPUT)$/i.test(p.tagName))continue;var t=String(n.nodeValue||'');if(t){nodes.push({n:n,s:raw.length,e:raw.length+t.length});raw+=t;}}
+      var sp=readerProjectText(src),rp=readerProjectText(raw),pre=doc.createRange();try{pre.selectNodeContents(item.el);pre.setEnd(node,off);}catch(_){return null;}
+      if(sp.text!==rp.text)return null;var pp=readerProjectText(String(pre.toString()||'')),norm=Math.min(sp.text.length,pp.text.length);var local=norm>=sp.text.length?src.length:(sp.starts[Math.max(0,norm)]||0);return item.s+local;
+    }
+    var a=itemFor(range.startContainer),b=itemFor(range.endContainer);if(!a||!b)return null;
+    var ss=point(a,range.startContainer,range.startOffset),ee=point(b,range.endContainer,range.endOffset);if(ss==null||ee==null||ee<ss)return null;
+    var expected=readerProjectText(ct.slice(ss,ee)).text,actual=readerProjectText(String(range.toString()||'')).text;if(expected!==actual)return null;
+    return {start:ss,end:ee,text:String(range.toString()||''),confidence:'txt-source-annotated-exact'};
+  }
+  odtCanonicalToDom(index,start,end,quote,options){if(this.formatKind()!=='odt')return null;return this.sourceAnchoredToDom(index,start,end);}
+  docxCanonicalToDom(index,start,end,quote,options){if(this.formatKind()!=='docx')return null;return this.sourceAnchoredToDom(index,start,end);}
+  odtDomRangeToCanonical(index,range,options){if(this.formatKind()!=='odt')return null;return this.officeDomRangeToCanonical(index,range,options);}
+  docxDomRangeToCanonical(index,range,options){if(this.formatKind()!=='docx')return null;return this.officeDomRangeToCanonical(index,range,options);}
+  officeDomRangeToCanonical(index,range,options){
+    options=options||{};var doc=this.iframe&&this.iframe.contentDocument;if(!doc||!range)return null;
+    if(!doc.body.classList.contains('reader-format-office'))return null;
+    var ct=String(this.canonicalSection(index).text||''),root=doc.getElementById('source')||doc.body;this.installSourceAnchors(index,doc);
+    function anchorFor(node){var el=node&&node.nodeType===1?node:node&&node.parentElement;while(el&&el!==root){if(el.hasAttribute&&el.hasAttribute('data-bn-source-start')&&el.hasAttribute('data-bn-source-end'))return {el:el,s:Number(el.getAttribute('data-bn-source-start')),e:Number(el.getAttribute('data-bn-source-end'))};el=el.parentElement;}if(node===root)return {el:root,s:0,e:ct.length,rootBoundary:true};return null;}
+    function sourcePoint(item,node,off){if(!item||!Number.isFinite(item.s)||!Number.isFinite(item.e))return null;if(item.rootBoundary&&node===root)return Number(off)<=0?0:ct.length;var pre=doc.createRange();try{pre.selectNodeContents(item.el);pre.setEnd(node,off);}catch(_){return null;}var prefix=String(pre.toString()||''),whole=String(item.el.textContent||''),src=ct.slice(item.s,item.e),sp=readerProjectText(src),wp=readerProjectText(whole),pp=readerProjectText(prefix);if(sp.text!==wp.text)return null;var norm=Math.min(sp.text.length,pp.text.length),raw=norm>=sp.text.length?src.length:(sp.starts[Math.max(0,norm)]||0);return item.s+raw;}
+    var sa=anchorFor(range.startContainer),ea=anchorFor(range.endContainer);if(!sa||!ea)return null;var ss=sourcePoint(sa,range.startContainer,range.startOffset),ee=sourcePoint(ea,range.endContainer,range.endOffset);if(ss==null||ee==null||ee<ss)return null;var selected=String(range.toString()||''),expected=readerProjectText(ct.slice(ss,ee)).text;if(readerProjectText(selected).text!==expected)return null;return {start:ss,end:ee,text:selected,confidence:'source-anchor-exact'};
+  }
   domRangeToCanonical(index,range,options){
     options=options||{};
     var annotationMode=options.annotation===true;
+    var kind=this.formatKind();
+    if(kind==="txt")return this.txtDomRangeToCanonical(index,range,options);
+    if(kind==="odt")return this.odtDomRangeToCanonical(index,range,options);
+    if(kind==="docx")return this.docxDomRangeToCanonical(index,range,options);
+    if(kind==="epub")return null;
     var doc=this.iframe&&this.iframe.contentDocument;if(!doc||!range)return null;var canon=this.canonicalSection(index),ct=String(canon.text||''),root=doc.getElementById('source')||doc.body;
     if(!this.isEpubMulti()&&root){
       this.installSourceAnchors(index,doc);
