@@ -33,3 +33,5 @@ jobs:
           name: BookNote-XPI
           path: dist/*.xpi
           if-no-files-found: error
+
+# rebuild after reader fixes
