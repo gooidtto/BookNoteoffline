@@ -877,10 +877,18 @@ function resolveReaderPosition(a){
  }
  var list=state.canonicalChapters.length?state.canonicalChapters:state.chapters;
  if(!pos||pos.type!=='reflow')return null;
- var absoluteStart=Number(pos.documentStart),absoluteEnd=Number(pos.documentEnd);if(!Number.isFinite(absoluteStart))return null;
- var located=globalThis.BookNoteLocator?BookNoteLocator.fromAbsolute(list,absoluteStart,Number.isFinite(absoluteEnd)?absoluteEnd:absoluteStart,String((pos.textQuote&&pos.textQuote.exact)||a.text||''),{textQuote:pos.textQuote}):null;
- if(!located)return null;
- var idx=Number(located.chapterIndex),canon=list[idx]||{},base=Number(canon.textStart)||0,start=Number(located.start),end=Number(located.end),query=String((pos.textQuote&&pos.textQuote.exact)||a.text||'');
+ var sourceAnchor=pos.sourceAnchor||null,idx,canon,base,start,end,absoluteStart,absoluteEnd,query=String((pos.textQuote&&pos.textQuote.exact)||a.text||'');
+ if(sourceAnchor&&Number.isFinite(Number(sourceAnchor.chapterIndex))&&Number.isFinite(Number(sourceAnchor.localStart))&&Number.isFinite(Number(sourceAnchor.localEnd))){
+   idx=Math.max(0,Math.min(list.length-1,Number(sourceAnchor.chapterIndex)));
+   canon=list[idx]||{};base=Number(canon.textStart)||0;
+   start=Number(sourceAnchor.localStart);end=Number(sourceAnchor.localEnd);
+   absoluteStart=base+start;absoluteEnd=base+end;
+ }else{
+   absoluteStart=Number(pos.documentStart);absoluteEnd=Number(pos.documentEnd);if(!Number.isFinite(absoluteStart))return null;
+   var located=globalThis.BookNoteLocator?BookNoteLocator.fromAbsolute(list,absoluteStart,Number.isFinite(absoluteEnd)?absoluteEnd:absoluteStart,query,{textQuote:pos.textQuote}):null;
+   if(!located)return null;
+   idx=Number(located.chapterIndex);canon=list[idx]||{};base=Number(canon.textStart)||0;start=Number(located.start);end=Number(located.end);
+ }
  if(!Number.isFinite(start))return null;
  start=Math.max(base,Math.min(Number(canon.textEnd)!=null?Number(canon.textEnd):base+String(canon.text||'').length,start));
  end=Number.isFinite(end)?Math.max(start,Math.min(Number(canon.textEnd)!=null?Number(canon.textEnd):base+String(canon.text||'').length,end)):start;
@@ -1255,9 +1263,14 @@ async function jumpAnnotation(a){
   if(epubJump){
     off=Number(pos.start)||0;
   }else if(pos.type==='reflow'){
-    var abs=Number(pos.documentStart);
-    var al=globalThis.BookNoteLocator?BookNoteLocator.fromAbsolute(list,abs,Number(pos.documentEnd),String((pos.textQuote&&pos.textQuote.exact)||fresh.text||''),{textQuote:pos.textQuote}):null;
-    if(al){idx=Number(al.chapterIndex)||0;off=Math.max(0,Number(al.start)-(Number(list[idx]&&list[idx].textStart)||0));}
+    var anchor=pos.sourceAnchor;
+    if(anchor&&Number.isFinite(Number(anchor.chapterIndex))&&Number.isFinite(Number(anchor.localStart))){
+      idx=Number(anchor.chapterIndex)||0;off=Math.max(0,Number(anchor.localStart));
+    }else{
+      var abs=Number(pos.documentStart);
+      var al=globalThis.BookNoteLocator?BookNoteLocator.fromAbsolute(list,abs,Number(pos.documentEnd),String((pos.textQuote&&pos.textQuote.exact)||fresh.text||''),{textQuote:pos.textQuote}):null;
+      if(al){idx=Number(al.chapterIndex)||0;off=Math.max(0,Number(al.start)-(Number(list[idx]&&list[idx].textStart)||0));}
+    }
   }
   idx=Math.max(0,Math.min(state.chapters.length-1,Number.isFinite(idx)?idx:Number(fresh.chapterIndex)||0));
   if(state.runtime){
