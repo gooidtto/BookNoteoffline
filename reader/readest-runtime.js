@@ -211,6 +211,14 @@ class ReadestRuntime extends EventTarget{
   invalidatePositionMap(doc){if(doc)this._positionCache.delete(doc);}
   positionNodes(doc){var cached=this._positionCache.get(doc);if(cached)return cached;var root=doc.getElementById('source')||doc.body,walker=doc.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[],n,total=0;while((n=walker.nextNode())){var p=n.parentElement;if(p&&/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|INPUT)$/i.test(p.tagName))continue;var len=(n.nodeValue||'').length;if(!len)continue;nodes.push({n:n,s:total,e:total+len});total+=len;}var raw=nodes.map(function(x){return x.n.nodeValue||''}).join(''),proj=readerProjectText(raw);cached={nodes:nodes,raw:raw,proj:proj};this._positionCache.set(doc,cached);return cached;}
   domPointAt(info,raw){raw=Math.max(0,Math.min(Number(raw)||0,info.raw.length));var nodes=info.nodes;if(!nodes.length)return null;var lo=0,hi=nodes.length-1,idx=nodes.length-1;while(lo<=hi){var mid=(lo+hi)>>1;if(raw<=nodes[mid].e){idx=mid;hi=mid-1;}else lo=mid+1;}var x=nodes[idx];return {node:x.n,offset:Math.max(0,Math.min((x.n.nodeValue||'').length,raw-x.s))};}
+  formatKind(){
+    var m=this.book&&this.book.meta||{},v=String(m.documentFormat||m.documentFileName||m.format||'').toLowerCase();
+    if(v.indexOf('epub')>=0)return 'epub';
+    if(v==='txt'||v==='text/plain'||/\.txt$/i.test(v))return 'txt';
+    if(v==='odt'||/\.odt$/i.test(v))return 'odt';
+    if(v==='docx'||/\.docx$/i.test(v))return 'docx';
+    return v;
+  }
   isEpubMulti(){return !!(this.book&&this.book.epubModel);}
   epubFindHits(query){if(!this.isEpubMulti())return [];return this.book.epubModel.findAll(query).map(function(h){var s=this.book.sections[h.sectionIndex],base=Number(s&&s.textStart)||0;return Object.assign({},h,{start:base+h.start,end:base+h.end,localStart:h.start,localEnd:h.end,chapterIndex:h.sectionIndex,sectionIndex:h.sectionIndex,epubLocator:h.locator});},this);}
   epubResolveHit(hit){
@@ -364,6 +372,9 @@ class ReadestRuntime extends EventTarget{
     try{var r=doc.createRange();r.setStart(ap.node,ap.offset);r.setEnd(bp.node,bp.offset);if(r.collapsed)return null;var expected=readerProjectText(ct.slice(s,e)).text,actual=readerProjectText(r.toString()).text;if(expected!==actual)return null;return {start:ap,end:bp,confidence:'txt-source-annotated-exact',range:r};}catch(_){return null;}
   }
 
+  txtDomRangeToCanonical(index,range,options){
+    var doc=this.iframe&&this.iframe.contentDocument;if(!doc||!range)return null;var info=this.positionNodes(doc),canon=this.canonicalSection(index),ct=String(canon.text||''),cp=readerProjectText(ct),pre=doc.createRange();pre.selectNodeContents(doc.getElementById('source')||doc.body);try{pre.setEnd(range.startContainer,range.startOffset);}catch(_){return null}var rawStart=pre.toString().length,rawEnd=rawStart+String(range.toString()||'').length;if(cp.text===info.proj.text){var ni=rawStart>=info.raw.length?cp.starts.length:readerNormIndexAt(info.proj,rawStart),nj=rawEnd<=rawStart?ni:readerNormIndexAt(info.proj,Math.max(0,rawEnd-1));var cs=ni<cp.starts.length&&cp.starts[ni]!=null?cp.starts[ni]:ct.length,ce=rawEnd<=rawStart?cs:(nj<cp.ends.length?cp.ends[nj]:ct.length);return {start:Math.max(0,Math.min(ct.length,cs)),end:Math.max(Math.max(0,Math.min(ct.length,cs)),Math.min(ct.length,ce)),text:String(range.toString()||''),confidence:'normalized-exact'};}var selected=String(range.toString()||''),nq=readerProjectText(selected).text;if(nq){var pos=readerFindAll(info.proj.text,nq,100000),target=info.proj.text.slice(0,readerNormIndexAt(info.proj,rawStart)),ord=readerFindAll(target,nq,100000).length,canonPos=readerFindAll(cp.text,nq,100000);if(canonPos.length){var p=canonPos[Math.min(ord,canonPos.length-1)],cs=cp.starts[p]||0,ce=cp.ends[Math.min(cp.ends.length-1,p+nq.length-1)]||cs;return {start:cs,end:Math.max(cs,ce),text:selected,confidence:'quote-ordinal'};}}var ratio=info.raw.length?rawStart/info.raw.length:0,cs=Math.round(ct.length*Math.max(0,Math.min(1,ratio)));return {start:cs,end:Math.min(ct.length,cs+selected.length),text:selected};
+  }
   /* v7.18.56 — source-anchor layer for TXT/ODT/DOCX/MD/HTML.
    * DOM is rebuilt on every show(); source ranges survive because they are
    * attached to the imported chapter's immutable text space, not DOM nodes.
@@ -377,29 +388,22 @@ class ReadestRuntime extends EventTarget{
       return Number.isFinite(a)&&Number.isFinite(b)&&b>a;
     });
     if(existing.length)return existing;
+    /* TXT v7.18.56 contract: source projection is authoritative. Office DOM
+       blocks are only mapped onto that source space; no NFKC/quote/ratio guess. */
     var blocks=Array.prototype.slice.call(root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,blockquote,li,pre,dt,dd'));
     if(!blocks.length)blocks=Array.prototype.slice.call(root.children||[]);
-    function fold(v){var x=String(v||'').replace(/\u00a0/g,' ').replace(/\r\n|\r/g,'\n').replace(/\s+/g,' ').trim();try{x=x.normalize('NFKC')}catch(_){}return x;}
-    var folded=fold(ct),map=[],fi=0,i,j,ch,nx,cursor=0;
-    for(i=0;i<ct.length&&fi<folded.length;i++){
-      ch=ct.charAt(i);
-      if(/\s/.test(ch)){
-        while(i+1<ct.length&&/\s/.test(ct.charAt(i+1)))i++;
-        if(fi<folded.length&&folded.charAt(fi)===' ')map[fi++]=i;
-        continue;
-      }
-      nx=ch;try{nx=nx.normalize('NFKC')}catch(_){}
-      for(j=0;j<nx.length&&fi<folded.length;j++)map[fi++]=i;
-    }
+    var sourceProj=readerProjectText(ct),cursor=0;
     blocks.forEach(function(el){
-      var needle=fold(el.textContent||'');if(!needle)return;
-      var at=folded.indexOf(needle,cursor);if(at<0)return;
-      var endFold=at+needle.length-1,start=map[at],end=endFold<map.length?map[endFold]+1:ct.length;
-      if(start==null||end<=start)return;
+      var raw=String(el.textContent||''),needle=readerProjectText(raw).text.trim();
+      if(!needle)return;
+      var at=sourceProj.text.indexOf(needle,cursor);if(at<0)return;
+      var start=at<sourceProj.starts.length?sourceProj.starts[at]:null;
+      var last=at+needle.length-1,end=last<sourceProj.ends.length?sourceProj.ends[last]:null;
+      if(start==null||end==null||end<=start)return;
       el.setAttribute('data-odt-source-start',String(start));
       el.setAttribute('data-odt-source-end',String(end));
-      el.setAttribute('data-odt-source-version','1');
-      cursor=endFold+1;
+      el.setAttribute('data-odt-source-version','2');
+      cursor=last+1;
     });
     return Array.prototype.slice.call(root.querySelectorAll('[data-odt-source-start][data-odt-source-end]'));
   }
@@ -451,29 +455,21 @@ class ReadestRuntime extends EventTarget{
       return Number.isFinite(a)&&Number.isFinite(b)&&b>a;
     });
     if(existing.length)return existing;
+    /* TXT v7.18.56 contract, independently namespaced for DOCX. */
     var blocks=Array.prototype.slice.call(root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,blockquote,li,pre,dt,dd'));
     if(!blocks.length)blocks=Array.prototype.slice.call(root.children||[]);
-    function fold(v){var x=String(v||'').replace(/\u00a0/g,' ').replace(/\r\n|\r/g,'\n').replace(/\s+/g,' ').trim();try{x=x.normalize('NFKC')}catch(_){}return x;}
-    var folded=fold(ct),map=[],fi=0,i,j,ch,nx,cursor=0;
-    for(i=0;i<ct.length&&fi<folded.length;i++){
-      ch=ct.charAt(i);
-      if(/\s/.test(ch)){
-        while(i+1<ct.length&&/\s/.test(ct.charAt(i+1)))i++;
-        if(fi<folded.length&&folded.charAt(fi)===' ')map[fi++]=i;
-        continue;
-      }
-      nx=ch;try{nx=nx.normalize('NFKC')}catch(_){}
-      for(j=0;j<nx.length&&fi<folded.length;j++)map[fi++]=i;
-    }
+    var sourceProj=readerProjectText(ct),cursor=0;
     blocks.forEach(function(el){
-      var needle=fold(el.textContent||'');if(!needle)return;
-      var at=folded.indexOf(needle,cursor);if(at<0)return;
-      var endFold=at+needle.length-1,start=map[at],end=endFold<map.length?map[endFold]+1:ct.length;
-      if(start==null||end<=start)return;
+      var raw=String(el.textContent||''),needle=readerProjectText(raw).text.trim();
+      if(!needle)return;
+      var at=sourceProj.text.indexOf(needle,cursor);if(at<0)return;
+      var start=at<sourceProj.starts.length?sourceProj.starts[at]:null;
+      var last=at+needle.length-1,end=last<sourceProj.ends.length?sourceProj.ends[last]:null;
+      if(start==null||end==null||end<=start)return;
       el.setAttribute('data-docx-source-start',String(start));
       el.setAttribute('data-docx-source-end',String(end));
-      el.setAttribute('data-docx-source-version','1');
-      cursor=endFold+1;
+      el.setAttribute('data-docx-source-version','2');
+      cursor=last+1;
     });
     return Array.prototype.slice.call(root.querySelectorAll('[data-docx-source-start][data-docx-source-end]'));
   }
@@ -885,6 +881,11 @@ html:focus-within{scroll-behavior:auto}`;style+=highlightCss;
       try{
         if(showSeq!==self._showSeq){frame.remove();resolve();return}
         var doc=frame.contentDocument;if(!doc||!doc.body){resolve();return}
+        /* v7.18.81: reveal the newly built document before optional locator/
+         * highlight enhancements run. A failure in any enhancement must never
+         * leave the already-rendered body trapped at opacity:0 (blank reader).
+         */
+        if(showSeq===self._showSeq&&self.iframe===frame) frame.style.opacity='1';
         self.applyFrameTheme();
         var fs=(Number(self._fontScale)||100)/100;doc.body.style.fontSize=(18*fs)+'px';doc.body.style.lineHeight=String(self._lineHeight||1.9);
         var width=self._readingWidth||960;doc.documentElement.style.setProperty('--booknote-reading-width',width+'px');
@@ -910,7 +911,12 @@ html:focus-within{scroll-behavior:auto}`;style+=highlightCss;
             setTimeout(function(){if(oldFrame&&oldFrame.parentNode&&self.iframe===frame)oldFrame.remove();},150);
           }
         });
-      }catch(e){console.error('Reader scroll render failed',e)}
+      }catch(e){
+        console.error('Reader scroll render failed',e);
+        /* Fail open for presentation: the srcdoc is already mounted, so a
+         * locator/highlight error must not turn valid source content invisible. */
+        if(showSeq===self._showSeq&&self.iframe===frame) frame.style.opacity='1';
+      }
       resolve();
     }});
   }
