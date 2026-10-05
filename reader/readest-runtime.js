@@ -885,6 +885,11 @@ html:focus-within{scroll-behavior:auto}`;style+=highlightCss;
       try{
         if(showSeq!==self._showSeq){frame.remove();resolve();return}
         var doc=frame.contentDocument;if(!doc||!doc.body){resolve();return}
+        /* v7.18.81: reveal the newly built document before optional locator/
+         * highlight enhancements run. A failure in any enhancement must never
+         * leave the already-rendered body trapped at opacity:0 (blank reader).
+         */
+        if(showSeq===self._showSeq&&self.iframe===frame) frame.style.opacity='1';
         self.applyFrameTheme();
         var fs=(Number(self._fontScale)||100)/100;doc.body.style.fontSize=(18*fs)+'px';doc.body.style.lineHeight=String(self._lineHeight||1.9);
         var width=self._readingWidth||960;doc.documentElement.style.setProperty('--booknote-reading-width',width+'px');
@@ -910,7 +915,12 @@ html:focus-within{scroll-behavior:auto}`;style+=highlightCss;
             setTimeout(function(){if(oldFrame&&oldFrame.parentNode&&self.iframe===frame)oldFrame.remove();},150);
           }
         });
-      }catch(e){console.error('Reader scroll render failed',e)}
+      }catch(e){
+        console.error('Reader scroll render failed',e);
+        /* Fail open for presentation: the srcdoc is already mounted, so a
+         * locator/highlight error must not turn valid source content invisible. */
+        if(showSeq===self._showSeq&&self.iframe===frame) frame.style.opacity='1';
+      }
       resolve();
     }});
   }
