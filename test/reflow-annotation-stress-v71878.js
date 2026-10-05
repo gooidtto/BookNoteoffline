@@ -11,6 +11,8 @@ for(let i=0;i<20000;i++){const idx=i%chapters.length,c=chapters[idx],a=(i*37)%c.
 const stale=makeChapters(3),saved=roundTrip(stale,2,3,8);stale[0].text+='新增内容';stale[1].text+='新增内容';
 assert(stale[saved.sourceAnchor.chapterIndex].text.slice(saved.sourceAnchor.localStart,saved.sourceAnchor.localEnd)===saved.sourceAnchor.exact,'stale global offsets must not control restore');
 assert(reader.includes('positionVersion:4'),'writes must persist v4');
+assert(!reader.includes('positionVersion:3'),'no active reflow annotation writer may remain on v3');
+assert(reader.includes('bookmarkPositionSource=s||{chapterIndex:idx,start:start,end:end,text:\'\',rawText:\'\'}'),'selection-free bookmarks must persist a position');
 assert(reader.includes("position:buildIndependentPosition(s),positionVersion:4"),'all reflow write paths must use v4');
 assert(reader.includes("p&&p.type==='reflow'&&p.sourceAnchor"),'section membership must use sourceAnchor');
 assert(reader.includes("mapped.confidence!=='source-anchor-exact'&&mapped.confidence!=='txt-source-annotated-exact'&&mapped.confidence!=='normalized-exact'"),'restore must reject heuristic locator confidence');
